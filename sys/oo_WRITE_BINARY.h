@@ -1,6 +1,6 @@
 /* oo_WRITE_BINARY.h
  *
- * Copyright (C) 1994-2009,2011-2018 Paul Boersma
+ * Copyright (C) 1994-2009,2011-2019 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -95,13 +95,14 @@
 		our x [_i]. writeBinary (_filePointer_); \
 	}
 
-#define oo_STRUCT_VECTOR_FROM(Type, x, min, max)  \
-	{ \
-		integer _min = (min), _max = (max); \
-		for (integer _i = _min; _i <= _max; _i ++) { \
-			our x [_i]. writeBinary (_filePointer_); \
-		} \
-	}
+#define oo_STRUCTVEC(Type, x, n)  \
+{ \
+	integer _size = (n); \
+	Melder_assert (our x.size == _size); \
+	for (integer _i = 1; _i <= _size; _i ++) { \
+		our x [_i]. writeBinary (_filePointer_); \
+	} \
+}
 
 #define oo_OBJECT(Class, version, x)  \
 	binputex ((bool) our x, _filePointer_); \

@@ -419,7 +419,7 @@ void praat_updateSelection () {
 
 static void gui_cb_list_selectionChanged (Thing /* boss */, GuiList_SelectionChangedEvent event) {
 	Melder_assert (event -> list == praatList_objects);
-	int IOBJECT;
+	integer IOBJECT;
 	bool first = true;
 	WHERE (SELECTED) {
 		SELECTED = false;
@@ -428,22 +428,18 @@ static void gui_cb_list_selectionChanged (Thing /* boss */, GuiList_SelectionCha
 		Melder_assert (theCurrentPraatObjects -> numberOfSelected [readableClassId] >= 0);
 	}
 	theCurrentPraatObjects -> totalSelection = 0;
-	integer numberOfSelected;
-	integer *selected = GuiList_getSelectedPositions (praatList_objects, & numberOfSelected);
-	if (selected) {
-		for (integer iselected = 1; iselected <= numberOfSelected; iselected ++) {
-			IOBJECT = selected [iselected];
-			SELECTED = true;
-			integer readableClassId = theCurrentPraatObjects -> list [IOBJECT]. object -> classInfo -> sequentialUniqueIdOfReadableClass;
-			theCurrentPraatObjects -> numberOfSelected [readableClassId] ++;
-			Melder_assert (theCurrentPraatObjects -> numberOfSelected [readableClassId] > 0);
-			UiHistory_write (first ? U"\nselectObject: \"" : U"\nplusObject: \"");
-			UiHistory_write_expandQuotes (FULL_NAME);
-			UiHistory_write (U"\"");
-			first = false;
-			theCurrentPraatObjects -> totalSelection += 1;
-		}
-		NUMvector_free (selected, 1);
+	autoINTVEC selected = GuiList_getSelectedPositions (praatList_objects);
+	for (integer iselected = 1; iselected <= selected.size; iselected ++) {
+		IOBJECT = selected [iselected];
+		SELECTED = true;
+		integer readableClassId = theCurrentPraatObjects -> list [IOBJECT]. object -> classInfo -> sequentialUniqueIdOfReadableClass;
+		theCurrentPraatObjects -> numberOfSelected [readableClassId] ++;
+		Melder_assert (theCurrentPraatObjects -> numberOfSelected [readableClassId] > 0);
+		UiHistory_write (first ? U"\nselectObject: \"" : U"\nplusObject: \"");
+		UiHistory_write_expandQuotes (FULL_NAME);
+		UiHistory_write (U"\"");
+		first = false;
+		theCurrentPraatObjects -> totalSelection += 1;
 	}
 	praat_show ();
 }
@@ -896,7 +892,8 @@ void praat_dontUsePictureWindow () { praatP.dontUsePictureWindow = true; }
 					Melder_flushError (praatP.title.get(), U": message not completely handled.");
 				}
 			}
-			if (narg && pid) kill (pid, SIGUSR2);
+			if (narg != 0 && pid != 0)
+				kill (pid, SIGUSR2);
 			return true;
 		}
 	#endif
@@ -911,18 +908,18 @@ void praat_dontUsePictureWindow () { praatP.dontUsePictureWindow = true; }
 		return 0;
 	}
 	extern "C" char *sendpraat (void *display, const char *programName, long timeOut, const char *text);
-	extern "C" wchar_t *sendpraatW (void *display, const wchar_t *programName, long timeOut, const wchar_t *text);
 	static void cb_openDocument (MelderFile file) {
 		char32 text [kMelder_MAXPATH+25];
 		/*
-		 * The user dropped a file on the Praat icon, while Praat is already running.
-		 */
-		Melder_sprint (text,500, U"Read from file... ", file -> path);
-		#ifdef __CYGWIN__
-			sendpraat (nullptr, Melder_peek32to8 (praatP.title.get()), 0, Melder_peek32to8 (text));
-		#else
-			sendpraatW (nullptr, Melder_peek32toW (praatP.title.get()), 0, Melder_peek32toW (text));
-		#endif
+			The user dropped a file on the Praat icon,
+			or double-clicked a Praat file,
+			while Praat is already running.
+		*/
+		Melder_sprint (text,500, U"Read from file: ~", file -> path);
+		sendpraat (nullptr, Melder_peek32to8 (praatP.title.get()), 0, Melder_peek32to8 (text));
+	}
+	static void cb_finishedOpeningDocuments () {
+		praat_updateSelection ();
 	}
 #elif macintosh
 	static int (*theUserMessageCallback) (char32 *message);
@@ -944,28 +941,6 @@ void praat_dontUsePictureWindow () { praatP.dontUsePictureWindow = true; }
 			AEGetParamPtr (theAppleEvent, 1, typeUTF8Text, nullptr, & buffer [0], actualSize, nullptr);
 			if (theUserMessageCallback) {
 				autostring32 buffer32 = Melder_8to32 (buffer);
-				theUserMessageCallback (buffer32.get());
-			}
-			free (buffer);
-			duringAppleEvent = false;
-		}
-		return noErr;
-	}
-	static pascal OSErr mac_processSignal16 (const AppleEvent *theAppleEvent, AppleEvent * /* reply */, long /* handlerRefCon */) {
-		static bool duringAppleEvent = false;   // FIXME: may have to be atomic?
-		if (! duringAppleEvent) {
-			char16 *buffer;
-			Size actualSize;
-			duringAppleEvent = true;
-			//AEInteractWithUser (kNoTimeOut, nullptr, nullptr);   // use time out of 0 to execute immediately (without bringing to foreground)
-			ProcessSerialNumber psn;
-			GetCurrentProcess (& psn);
-			SetFrontProcess (& psn);
-			AEGetParamPtr (theAppleEvent, 1, typeUTF16ExternalRepresentation, nullptr, nullptr, 0, & actualSize);
-			buffer = (char16 *) malloc ((size_t) actualSize);
-			AEGetParamPtr (theAppleEvent, 1, typeUTF16ExternalRepresentation, nullptr, & buffer [0], actualSize, nullptr);
-			if (theUserMessageCallback) {
-				autostring32 buffer32 = Melder_16to32 (buffer);
 				theUserMessageCallback (buffer32.get());
 			}
 			free (buffer);
@@ -1138,7 +1113,7 @@ void praat_init (conststring32 title, int argc, char **argv)
 			MelderInfo_writeLine (U"  -u, --utf16      use UTF-16LE output encoding, no BOM (the default on Windows)");
 			MelderInfo_writeLine (U"  -8, --utf8       use UTF-8 output encoding (the default on MacOS and Linux)");
 			MelderInfo_writeLine (U"  -a, --ansi       use ISO Latin-1 output encoding (lossy, hence not recommended)");
-			MelderInfo_writeLine (U"                   (on Windows, use -0 or -a when you redirect to a pipe or file)");
+			MelderInfo_writeLine (U"                   (on Windows, use -8 or -a when you redirect to a pipe or file)");
 			MelderInfo_close ();
 			exit (0);
 		} else if (strequ (argv [praatP.argumentNumber], "-8") || strequ (argv [praatP.argumentNumber], "--utf8")) {
@@ -1158,6 +1133,18 @@ void praat_init (conststring32 title, int argc, char **argv)
 			(void) 0;   // ignore this option, which was added by the Finder, perhaps when dragging a file on Praat (Process Serial Number)
 			praatP.argumentNumber += 1;
 		#endif
+		} else if (strequ (argv [praatP.argumentNumber], "-sgi") ||
+			strequ (argv [praatP.argumentNumber], "-motif") ||
+			strequ (argv [praatP.argumentNumber], "-solaris") ||
+			strequ (argv [praatP.argumentNumber], "-hp") ||
+			strequ (argv [praatP.argumentNumber], "-sum4") ||
+			strequ (argv [praatP.argumentNumber], "-mac") ||
+			strequ (argv [praatP.argumentNumber], "-win32") ||
+			strequ (argv [praatP.argumentNumber], "-linux") ||
+			strequ (argv [praatP.argumentNumber], "-cocoa") ||
+			strequ (argv [praatP.argumentNumber], "-chrome")
+		) {
+			praatP.argumentNumber += 1;
 		} else {
 			unknownCommandLineOption = Melder_8to32 (argv [praatP.argumentNumber]);
 			praatP.argumentNumber = INT32_MAX;   // ignore all other command line options
@@ -1323,11 +1310,14 @@ void praat_init (conststring32 title, int argc, char **argv)
 	if (Melder_batch) {
 		MelderString_empty (& theCurrentPraatApplication -> batchName);
 		for (int i = praatP.argumentNumber - 1; i < argc; i ++) {
-			if (i >= praatP.argumentNumber) MelderString_append (& theCurrentPraatApplication -> batchName, U" ");
+			if (i >= praatP.argumentNumber)
+				MelderString_append (& theCurrentPraatApplication -> batchName, U" ");
 			bool needsQuoting = !! strchr (argv [i], ' ') && (i == praatP.argumentNumber - 1 || i < argc - 1);
-			if (needsQuoting) MelderString_append (& theCurrentPraatApplication -> batchName, U"\"");
+			if (needsQuoting)
+				MelderString_append (& theCurrentPraatApplication -> batchName, U"\"");
 			MelderString_append (& theCurrentPraatApplication -> batchName, Melder_peek8to32 (argv [i]));
-			if (needsQuoting) MelderString_append (& theCurrentPraatApplication -> batchName, U"\"");
+			if (needsQuoting)
+				MelderString_append (& theCurrentPraatApplication -> batchName, U"\"");
 		}
 	} else {
 		trace (U"starting the application");
@@ -1341,11 +1331,20 @@ void praat_init (conststring32 title, int argc, char **argv)
 			trace (U"locale ", Melder_peek8to32 (setlocale (LC_ALL, nullptr)));
 		#elif motif
 			argv [0] = Melder_32to8 (praatP. title.get()).transfer();   // argc == 4
-			Gui_setOpenDocumentCallback (cb_openDocument);
+			Gui_setOpenDocumentCallback (cb_openDocument, cb_finishedOpeningDocuments);
 			GuiAppInitialize ("Praatwulg", argc, argv);
 		#elif cocoa
 			//[NSApplication sharedApplication];
-			[GuiCocoaApplication sharedApplication];
+			NSApplication *theApp = [GuiCocoaApplication sharedApplication];
+			/*
+				We want to get rid of the Search field in the help menu.
+				By default, such a Search field will come up automatically when we create a menu with the title "Help".
+				By changing this title to "SomeFakeTitleOfAMenuThatWillNeverBeInstantiated",
+				we trick macOS into thinking that our help menu is called "SomeFakeTitleOfAMenuThatWillNeverBeInstantiated".
+				As a result, the Search field will come up only when we create a menu
+				titled "SomeFakeTitleOfAMenuThatWillNeverBeInstantiated", which is never.
+			*/
+			theApp.helpMenu = [[NSMenu alloc] initWithTitle:@"SomeFakeTitleOfAMenuThatWillNeverBeInstantiated"];
 		#endif
 
 		trace (U"creating and installing the Objects window");
@@ -1378,7 +1377,6 @@ void praat_init (conststring32 title, int argc, char **argv)
 
 		#ifdef macintosh
 			AEInstallEventHandler (758934755, 0, (AEEventHandlerProcPtr) (mac_processSignal8), 0, false);   // for receiving sendpraat
-			AEInstallEventHandler (758934756, 0, (AEEventHandlerProcPtr) (mac_processSignal16), 0, false);   // for receiving sendpraatW
 			injectMessageAndInformationProcs (raam);   // BUG: default Melder_assert would call printf recursively!!!
 		#endif
 		trace (U"creating the menu bar in the Objects window");
@@ -1638,6 +1636,7 @@ void praat_run () {
 	{ unsigned char dummy = 200;
 		Melder_assert ((int) dummy == 200);
 	}
+	Melder_assert (integer_abs (-1000) == integer (1000));
 	{ int dummy = 200;
 		Melder_assert ((int) (signed char) dummy == -56);   // bingeti8 relies on this
 		Melder_assert ((int) (unsigned char) dummy == 200);
@@ -1727,6 +1726,11 @@ void praat_run () {
 		Melder_assert (! (frexp (0.0/0.0, & exponent) < 1.0));
 		Melder_assert (! (frexp (undefined, & exponent) < 1.0));
 	}
+	Melder_assert (str32equ (Melder_integer (1234567), U"1234567"));
+	Melder_assert (str32equ (Melder_integer (-1234567), U"-1234567"));
+	MelderColour notExplicitlyIniitialized;
+	Melder_assert (str32equ (Melder_colour (notExplicitlyIniitialized), U"{0,0,0}"));
+	Melder_assert (str32equ (Melder_colour (MelderColour (0.25, 0.50, 0.875)), U"{0.25,0.5,0.875}"));
 	{
 		VEC xn;   // uninitialized
 		Melder_assert (! xn.at);
@@ -1838,6 +1842,11 @@ void praat_run () {
 		if (praatP.userWantsToOpen) {
 			for (; praatP.argumentNumber < praatP.argc; praatP.argumentNumber ++) {
 				//Melder_casual (U"File to open <<", Melder_peek8to32 (theArgv [iarg]), U">>");
+				/*
+					The use double-clicked a Praat file,
+					or dropped a file on the Praat icon,
+					while Praat was not yet running.
+				*/
 				autostring32 text = Melder_dup (Melder_cat (U"Read from file... ",
 															Melder_peek8to32 (praatP.argv [praatP.argumentNumber])));
 				try {

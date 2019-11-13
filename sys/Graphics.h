@@ -23,8 +23,6 @@
 
 #include "Graphics_enums.h"
 
-typedef struct { double red, green, blue; } Graphics_Colour;
-
 typedef struct { double x1NDC, x2NDC, y1NDC, y2NDC; } Graphics_Viewport;
 
 Thing_declare (GuiDrawingArea);
@@ -98,7 +96,7 @@ Thing_define (Graphics, Thing) {
 		/* Current coordinate transformation. */
 	/* Graphics state. */
 	int lineType;
-	Graphics_Colour colour;
+	MelderColour colour;
 	double lineWidth, arrowSize, speckleSize;
 	kGraphics_colourScale colourScale;
 	int horizontalTextAlignment, verticalTextAlignment;
@@ -172,7 +170,7 @@ void Graphics_inqWsWindow (Graphics me, double *x1NDC, double *x2NDC, double *y1
 void Graphics_clearWs (Graphics me);
 void Graphics_flushWs (Graphics me);
 void Graphics_updateWs (Graphics me);
-void Graphics_beginMovieFrame (Graphics me, Graphics_Colour *colour);
+void Graphics_beginMovieFrame (Graphics me, MelderColour *colour);
 void Graphics_endMovieFrame (Graphics me, double frameDuration);
 void Graphics_DCtoWC (Graphics me, integer xDC, integer yDC, double *xWC, double *yWC);
 void Graphics_WCtoDC (Graphics me, double xWC, double yWC, integer *xDC, integer *yDC);
@@ -198,13 +196,13 @@ double Graphics_textWidth_ps_mm (Graphics me, conststring32 text /* cattable */,
 void Graphics_fillArea (Graphics me, integer numberOfPoints, double const *x, double const *y);
 void Graphics_cellArray (Graphics me, constMATVU const& z,
 	double x1, double x2, double y1, double y2, double minimum, double maximum);
-void Graphics_cellArray_colour (Graphics me, constmatrixview<double_rgbt> const& z,
+void Graphics_cellArray_colour (Graphics me, constmatrixview <MelderColour> const& z,
 	double x1, double x2, double y1, double y2, double minimum, double maximum);
 void Graphics_cellArray8 (Graphics me, constmatrixview <unsigned char> const& z,
 	double x1, double x2, double y1, double y2, unsigned char minimum, unsigned char maximum);
 void Graphics_image (Graphics me, constMATVU const& z,
 	double x1, double x2, double y1, double y2, double minimum, double maximum);
-void Graphics_image_colour (Graphics me, constmatrixview<double_rgbt> const& z,
+void Graphics_image_colour (Graphics me, constmatrixview <MelderColour> const& z,
 	double x1, double x2, double y1, double y2, double minimum, double maximum);
 void Graphics_image8 (Graphics me, constmatrixview <unsigned char> const& z,
 	double x1, double x2, double y1, double y2, uint8 minimum, uint8 maximum);
@@ -234,19 +232,10 @@ void Graphics_mark (Graphics me, double x, double y, double size_mm, conststring
 void Graphics_button (Graphics me, double x1, double x2, double y1, double y2);
 void Graphics_innerRectangle (Graphics me, double x1, double x2, double y1, double y2);
 
-extern Graphics_Colour Graphics_BLACK, Graphics_WHITE, Graphics_RED, Graphics_GREEN, Graphics_BLUE,
-	Graphics_CYAN, Graphics_MAGENTA, Graphics_YELLOW, Graphics_MAROON, Graphics_LIME, Graphics_NAVY, Graphics_TEAL,
-	Graphics_PURPLE, Graphics_OLIVE, Graphics_PINK, Graphics_SILVER, Graphics_GREY, Graphics_WINDOW_BACKGROUND_COLOUR;
-conststring32 Graphics_Colour_name (Graphics_Colour colour);
-static inline bool Graphics_Colour_equal (Graphics_Colour colour1, Graphics_Colour colour2) {
-	return colour1. red == colour2. red && colour1. green == colour2. green && colour1. blue == colour2. blue;
-}
-Graphics_Colour Graphics_cyclingBackgroundColour (integer category);
-Graphics_Colour Graphics_cyclingTextColour (integer category);
-void Graphics_setColour (Graphics me, Graphics_Colour colour);
+void Graphics_setColour (Graphics me, MelderColour colour);
 void Graphics_setGrey (Graphics me, double grey);
 
-void Graphics_xorOn (Graphics me, Graphics_Colour colour);
+void Graphics_xorOn (Graphics me, MelderColour colour);
 void Graphics_xorOff (Graphics me);
 void Graphics_highlight (Graphics me, double x1, double x2, double y1, double y2);
 void Graphics_unhighlight (Graphics me, double x1, double x2, double y1, double y2);
@@ -314,7 +303,7 @@ int Graphics_inqLineType (Graphics me);
 double Graphics_inqLineWidth (Graphics me);
 double Graphics_inqArrowSize (Graphics me);
 double Graphics_inqSpeckleSize (Graphics me);
-Graphics_Colour Graphics_inqColour (Graphics me);
+MelderColour Graphics_inqColour (Graphics me);
 enum kGraphics_colourScale Graphics_inqColourScale (Graphics me);
 
 void Graphics_contour (Graphics me, constMATVU const& z,

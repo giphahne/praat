@@ -34,7 +34,7 @@
  	invStudentQ, invChiSquareQ: modifications for 'undefined' return values.
  djmw 20030830 Corrected a bug in NUMtriangularfilter_amplitude
  djmw 20031111 Added NUMdmatrix_transpose, NUMdmatrix_printMatlabForm
- djmw 20040105 Added NUMmahalanobisDistance_chi
+ djmw 20040105 Added NUMmahalanobisDistanceSquared_chi
  djmw 20040303 Added NUMstring_containsPrintableCharacter.
  djmw 20050406 NUMprocrutus->NUMprocrustes
  djmw 20060319 NUMinverse_cholesky: calculation of determinant is made optional
@@ -89,22 +89,20 @@ struct pdf2_struct {
 };
 
 void MATprintMatlabForm (constMATVU const& m, conststring32 name) {
-	integer npc = 5;
-	ldiv_t n = ldiv (m.ncol, npc);
+	const integer npc = 5;
+	const ldiv_t n = ldiv (m.ncol, npc);
 
 	MelderInfo_open ();
 	MelderInfo_write (name, U"= [");
 	for (integer i = 1; i <= m.nrow; i ++) {
 		for (integer j = 1; j <= n.quot; j ++) {
-			for (integer k = 1; k <= npc; k ++) {
+			for (integer k = 1; k <= npc; k ++)
 				MelderInfo_write (m [i] [(j - 1) * npc + k], (k < npc ? U", " : U""));
-			}
 			MelderInfo_write (j < n.quot ? U",\n" : U"");
 		}
 
-		for (integer k = 1; k <= n.rem; k ++) {
+		for (integer k = 1; k <= n.rem; k ++)
 			MelderInfo_write (m [i] [n.quot * npc + k], (k < n.rem ? U", " : U""));
-		}
 		MelderInfo_write (i < m.nrow ? U";\n" : U"];\n");
 	}
 	MelderInfo_close ();
@@ -112,7 +110,8 @@ void MATprintMatlabForm (constMATVU const& m, conststring32 name) {
 
 void VECsmoothByMovingAverage_preallocated (VECVU const& out, constVECVU const& in, integer window) {
 	Melder_assert (out.size == in.size);
-	Melder_require (window > 0, U"The averaging window should be larger than 0.");
+	Melder_require (window > 0,
+		U"The averaging window should be larger than 0.");
 	for (integer i = 1; i <= out.size; i ++) {
 		integer jfrom = i - window / 2, jto = i + window / 2;
 		if (window % 2 == 0)
@@ -126,7 +125,8 @@ void VECsmoothByMovingAverage_preallocated (VECVU const& out, constVECVU const& 
 }
 
 autoMAT MATcovarianceFromColumnCentredMatrix (constMATVU const& x, integer ndf) {
-	Melder_require (ndf >= 0 && x.nrow - ndf > 0, U"Invalid arguments.");
+	Melder_require (ndf >= 0 && x.nrow - ndf > 0,
+		U"Invalid arguments.");
 	autoMAT covar = newMATmtm (x);
 	covar.all()  *=  1.0 / (x.nrow - ndf);
 	return covar;
@@ -178,7 +178,8 @@ double NUMmultivariateKurtosis (constMATVU const& m, int method) {
 	if (method == 1) { // Schott (2001, page 33)
 		kurt = 0.0;
 		for (integer l = 1; l <= x.ncol; l ++) {
-			double zl = 0.0, wl, sll2 = covar [l] [l] * covar [l] [l];
+			const double sll2 = covar [l] [l] * covar [l] [l];
+			double zl = 0.0, wl;
 			for (integer j = 1; j <= x.nrow; j ++) {
 				double d = x [j] [l] - mean [l], d2 = d * d;
 				zl += d2 * d2;
@@ -198,7 +199,7 @@ double NUMmultivariateKurtosis (constMATVU const& m, int method) {
 	Kruskal's algorithm for monotone regression (and much simpler).
 	Regression is ascending
 */
-autoVEC VECmonotoneRegression (constVEC x) {
+autoVEC newVECmonotoneRegression (constVEC x) {
 	autoVEC fit = newVECcopy (x);
 	double xt = undefined;   // only to stop gcc from complaining "may be used uninitialized"
 	for (integer i = 2; i <= x.size; i ++) {
@@ -221,7 +222,7 @@ autoVEC VECmonotoneRegression (constVEC x) {
 
 #undef TINY
 
-double MATdeterminant_fromSymmetricMatrix (constMAT m) {
+double NUMdeterminant_fromSymmetricMatrix (constMAT m) {
 	Melder_assert (m.nrow == m.ncol);
 	autoMAT a = newMATcopy (m);
 	
@@ -230,7 +231,8 @@ double MATdeterminant_fromSymmetricMatrix (constMAT m) {
 	char uplo = 'U';
 	integer lda = m.nrow, info;
 	NUMlapack_dpotf2 (& uplo, & a.nrow, & a [1] [1], & lda, & info);
-	Melder_require (info == 0, U"dpotf2 cannot determine Cholesky decomposition.");
+	Melder_require (info == 0,
+		U"dpotf2 cannot determine Cholesky decomposition.");
 	longdouble lnd = 0.0;
 	for (integer i = 1; i <= a.nrow; i ++) {
 		lnd += log (a [i] [i]);
@@ -248,53 +250,52 @@ void MATlowerCholeskyInverse_inplace (MAT a, double *out_lnd) {
 	// Fortran storage -> use uplo='U' to get 'L'.
 
 	(void) NUMlapack_dpotf2 (& uplo, & a.nrow, & a [1] [1], & a.nrow, & info);
-	Melder_require (info == 0, U"dpotf2 fails with code ", info, U".");
+	Melder_require (info == 0,
+		U"dpotf2 fails with code ", info, U".");
 
 	// Determinant from diagonal, diagonal is now sqrt (a [i] [i]) !
 
 	if (out_lnd) {
 		longdouble lnd = 0.0;
-		for (integer i = 1; i <= a.nrow; i ++) {
+		for (integer i = 1; i <= a.nrow; i ++)
 			lnd += log (a [i] [i]);
-		}
 		*out_lnd *= 2.0 * lnd; /* because A = L . L' */
 	}
 
 	// Get the inverse */
 
 	(void) NUMlapack_dtrtri (& uplo, & diag, & a.nrow, & a [1] [1], & a.nrow, & info);
-	Melder_require (info == 0, U"dtrtri fails with code ", info, U".");
+	Melder_require (info == 0,
+		U"dtrtri fails with code ", info, U".");
 }
 
-autoMAT MATinverse_fromLowerCholeskyInverse (constMAT m) {
+autoMAT newMATinverse_fromLowerCholeskyInverse (constMAT m) {
 	Melder_assert (m.nrow == m.ncol);
 	autoMAT result = newMATraw (m.nrow, m.nrow);
 	for (integer irow = 1; irow <= m.nrow; irow ++) {
 		for (integer icol = 1; icol <= irow; icol ++) {
 			longdouble sum = 0.0;
-			for (integer k = irow; k <= m.nrow; k ++) {
+			for (integer k = irow; k <= m.nrow; k ++)
 				sum += m [k] [irow] * m [k] [icol];
-			}
 			result [irow] [icol] = result [icol] [irow] = (double) sum;
 		}
 	}
 	return result;
 }
 
-double NUMmahalanobisDistance (constMAT lowerInverse, constVEC v, constVEC m) {
+double NUMmahalanobisDistanceSquared (constMAT lowerInverse, constVEC v, constVEC m) {
 	Melder_assert (lowerInverse.ncol == v.size && v.size == m.size);
 	longdouble chisq = 0.0;
 	if (lowerInverse.nrow == 1) { // diagonal matrix is one row matrix
 		for (integer icol = 1; icol <= v.size; icol ++) {
-			double t = lowerInverse [1] [icol] * (v [icol] - m [icol]);
+			const double t = lowerInverse [1] [icol] * (v [icol] - m [icol]);
 			chisq += t * t;
 		}
 	} else { // square matrix
 		for (integer irow = v.size; irow > 0; irow --) {
 			longdouble t = 0.0;
-			for (integer icol = 1; icol <= irow; icol ++) {
+			for (integer icol = 1; icol <= irow; icol ++)
 				t += lowerInverse [irow] [icol] * (v [icol] - m [icol]);
-			}
 			chisq += t * t;
 		}
 	}
@@ -326,9 +327,8 @@ double VECdominantEigenvector_inplace (VEC inout_q, constMAT m, double tolerance
 void MATprojectColumnsOnEigenspace_preallocated (MAT projection, constMATVU const& data, constMATVU const& eigenvectors) {
 	Melder_assert (data.nrow == eigenvectors.ncol && projection.nrow == eigenvectors.nrow);
 	for (integer icol = 1; icol <= data.ncol; icol ++)
-		for (integer irow = 1; irow <= eigenvectors.nrow; irow ++) {
+		for (integer irow = 1; irow <= eigenvectors.nrow; irow ++)
 			projection [irow] [icol] = NUMinner (eigenvectors.row (irow), data.column (icol));
-		}
 	// MATmul_tt (data.get(), eigenvectors.get()) ??
 }
 
@@ -336,7 +336,7 @@ integer NUMsolveQuadraticEquation (double a, double b, double c, double *x1, dou
 	return gsl_poly_solve_quadratic (a, b, c, x1, x2);
 }
 
-autoVEC NUMsolveEquation (constMATVU const& a, constVECVU const& b, double tolerance) {
+autoVEC newVECsolve (constMATVU const& a, constVECVU const& b, double tolerance) {
 	Melder_assert (a.nrow == b.size);
 	autoSVD me = SVD_createFromGeneralMatrix (a);
 	SVD_zeroSmallSingularValues (me.get(), tolerance);
@@ -344,9 +344,9 @@ autoVEC NUMsolveEquation (constMATVU const& a, constVECVU const& b, double toler
 	return x;
 }
 
-autoMAT NUMsolveEquations (constMATVU const& a, constMATVU const& b, double tolerance) {
+autoMAT newMATsolve (constMATVU const& a, constMATVU const& b, double tolerance) {
 	Melder_assert (a.nrow == b.nrow);
-	double tol = ( tolerance > 0.0 ? tolerance : NUMfpp -> eps * a.nrow );
+	const double tol = ( tolerance > 0.0 ? tolerance : NUMfpp -> eps * a.nrow );
 	
 	autoSVD me = SVD_createFromGeneralMatrix (a);
 	autoMAT x = newMATraw (b.nrow, b.ncol);
@@ -360,24 +360,20 @@ autoMAT NUMsolveEquations (constMATVU const& a, constMATVU const& b, double tole
 	return x;
 }
 
-
-autoVEC NUMsolveNonNegativeLeastSquaresRegression (constMAT m, constVEC d, double tol, integer itermax) {
+autoVEC newVECsolveNonNegativeLeastSquaresRegression (constMAT m, constVEC d, double tol, integer itermax) {
 	Melder_assert (m.nrow == d.size);
-	long nr = m.nrow, nc = m.ncol;
-	autoVEC b = newVECzero (nc);
+	autoVEC b = newVECzero (m.ncol);
 	for (integer iter = 1; iter <= itermax; iter ++) {
 
 		// Fix all weights except b [j]
 
-		for (integer j = 1; j <= nc; j ++) {
+		for (integer j = 1; j <= m.ncol; j ++) {
 			longdouble mjr = 0.0, mjmj = 0.0;
-			for (integer i = 1; i <= nr; i ++) {
+			for (integer i = 1; i <= m.nrow; i ++) {
 				double ri = d [i], mij = m [i] [j];
-				for (integer l = 1; l <= nc; l ++) {
-					if (l != j) {
+				for (integer l = 1; l <= m.ncol; l ++)
+					if (l != j)
 						ri -= b [l] * m [i] [l];
-					}
-				}
 				mjr += mij * ri;
 				mjmj += mij * mij;
 			}
@@ -387,16 +383,14 @@ autoVEC NUMsolveNonNegativeLeastSquaresRegression (constMAT m, constVEC d, doubl
 		// Calculate t(b) and compare with previous result.
 
 		longdouble difsq = 0.0, difsqp = 0.0;
-		for (integer i = 1; i <= nr; i ++) {
+		for (integer i = 1; i <= m.nrow; i ++) {
 			double dmb = d [i];
-			for (integer j = 1; j <= nc; j ++) {
+			for (integer j = 1; j <= m.ncol; j ++)
 				dmb -= m [i] [j] * b [j];
-			}
 			difsq += dmb * dmb;
 		}
-		if (fabs (difsq - difsqp) / difsq < tol) {
+		if (fabs (difsq - difsqp) / difsq < tol)
 			break;
-		}
 		difsqp = difsq;
 	}
 	return b;
@@ -412,12 +406,12 @@ struct nr_struct {
 */
 
 static void nr_func (double x, double *f, double *df, void *data) {
-	struct nr_struct *me = (struct nr_struct *) data;
+	const struct nr_struct *me = (struct nr_struct *) data;
 	*f = *df = 0.0;
 	for (integer i = 1; i <= 3; i ++) {
-		double t1 = (my delta [i] - x);
-		double t2 = my y [i] / t1;
-		double t3 = t2 * t2 * my delta [i];
+		const double t1 = (my delta [i] - x);
+		const double t2 = my y [i] / t1;
+		const double t3 = t2 * t2 * my delta [i];
 		*f += t3;
 		*df += t3 * 2.0 / t1;
 	}
@@ -426,7 +420,8 @@ static void nr_func (double x, double *f, double *df, void *data) {
 void NUMsolveConstrainedLSQuadraticRegression (constMAT o, constVEC d, double *out_alpha, double *out_gamma) {
 	Melder_assert (o.ncol == o.nrow && d.size == o.ncol && d.size == 3);
 	integer n3 = 3, info;
-	double eps = 1e-5, t1, t2, t3;
+	const double eps = 1e-5;
+	double t1, t2, t3;
 
 	autoMAT g = newMATzero (n3, n3);
 	autoMAT ptfinv = newMATzero (n3, n3);
@@ -440,7 +435,8 @@ void NUMsolveConstrainedLSQuadraticRegression (constMAT o, constVEC d, double *o
 
 	char uplo = 'U';
 	(void) NUMlapack_dpotf2 (& uplo, & n3, & ftinv [1] [1], & n3, & info);
-	Melder_require (info == 0, U"dpotf2 fails.");
+	Melder_require (info == 0,
+		U"dpotf2 fails.");
 	
 	ftinv [1] [2] = ftinv [1] [3] = ftinv [2] [3] = 0.0;
 
@@ -453,18 +449,13 @@ void NUMsolveConstrainedLSQuadraticRegression (constMAT o, constVEC d, double *o
 
 	// G = F^-1 B (F')^-1 (eq. 4)
 
-	for (integer i = 1; i <= 3; i ++) {
-		for (integer j = 1; j <= 3; j ++) {
-			for (integer k = 1; k <= 3; k ++) {
-				if (ftinv [k] [i] != 0.0) {
-					for (integer l = 1; l <= 3; l ++) {
+	for (integer i = 1; i <= 3; i ++)
+		for (integer j = 1; j <= 3; j ++)
+			for (integer k = 1; k <= 3; k ++)
+				if (ftinv [k] [i] != 0.0)
+					for (integer l = 1; l <= 3; l ++)
 						g [i] [j] += ftinv [k] [i] * b [k] [l] * ftinv [l] [j];
-					}
-				}
-			}
-		}
-	}
-
+					
 	// G's eigen-decomposition with eigenvalues (assumed ascending). (eq. 5)
 	autoMAT p;
 	autoVEC delta;
@@ -473,35 +464,30 @@ void NUMsolveConstrainedLSQuadraticRegression (constMAT o, constVEC d, double *o
 	// Construct y = P'.F'.O'.d ==> Solve (F')^-1 . P .y = (O'.d)	(page 632)
 	// Get P'F^-1 from the transpose of (F')^-1 . P
 	
-	autoVEC otd (n3, kTensorInitializationType::ZERO);
-	autoMAT ftinvp (n3, n3, kTensorInitializationType::ZERO);
+	autoVEC otd = newVECzero (n3);
+	autoMAT ftinvp =newMATzero (n3, n3);
 	for (integer i = 1; i <= 3; i ++) {
 		for (integer j = 1; j <= 3; j ++) {
-			if (ftinv [i] [j] != 0.0) {
-				for (integer k = 1; k <= 3; k ++) {
+			if (ftinv [i] [j] != 0.0)
+				for (integer k = 1; k <= 3; k ++)
 					ftinvp [i] [k] += ftinv [i] [j] * p [j] [k];
-				}
-			}
 		}
-		for (integer k = 1; k <= n3; k ++) {
+		for (integer k = 1; k <= n3; k ++)
 			otd [i] += o [k] [i] * d [k];
-		}
 	}
 	
-	autoMAT ptfinvc (n3, n3, kTensorInitializationType::ZERO);
+	autoMAT ptfinvc = newMATzero (n3, n3);
 
-	for (integer i = 1; i <= 3; i ++) {
-		for (integer j = 1; j <= 3; j ++) {
+	for (integer i = 1; i <= 3; i ++)
+		for (integer j = 1; j <= 3; j ++)
 			ptfinvc [j] [i] = ptfinv [j] [i] = ftinvp [i] [j];
-		}
-	}
 
-	autoVEC y = NUMsolveEquation (ftinvp.get(), otd.get(), 1e-6);
+	autoVEC y = newVECsolve (ftinvp.get(), otd.get(), 1e-6);
 
 	// The solution (3 cases)
-	autoVEC w (n3, kTensorInitializationType::ZERO);
+	autoVEC w = newVECzero (n3);
 	autoVEC chi;
-	autoVEC diag (n3, kTensorInitializationType::ZERO);
+	autoVEC diag = newVECzero (n3);
 
 	if (fabs (y [1]) < eps) {
 		// Case 1: page 633
@@ -513,10 +499,11 @@ void NUMsolveConstrainedLSQuadraticRegression (constMAT o, constVEC d, double *o
 		w [2] = t2 * delta [2];
 		w [3] = t3 * delta [3];
 
-		chi = NUMsolveEquation (ptfinv.get(), w.get(), 1e-6);
+		chi = newVECsolve (ptfinv.get(), w.get(), 1e-6);
 
 		w [1] = -w [1];
-		if (fabs (chi [3] / chi [1]) < eps) chi = NUMsolveEquation (ptfinvc.get(), w.get(), 1e-6);
+		if (fabs (chi [3] / chi [1]) < eps)
+			chi = newVECsolve (ptfinvc.get(), w.get(), 1e-6);
 		
 	} else if (fabs (y [2]) < eps) {
 		// Case 2: page 633
@@ -527,36 +514,39 @@ void NUMsolveConstrainedLSQuadraticRegression (constMAT o, constVEC d, double *o
 		if ( (delta [2] < delta [3] && (t2 = (t1 * t1 * delta [1] + t3 * t3 * delta [3])) < eps)) {
 			w [2] = sqrt (- delta [2] * t2); /* +- */
 			w [3] = t3 * delta [3];
-			chi = NUMsolveEquation (ptfinv.get(), w.get(), 1e-6);
+			chi = newVECsolve (ptfinv.get(), w.get(), 1e-6);
 			w [2] = -w [2];
-			if (fabs (chi [3] / chi [1]) < eps) chi = NUMsolveEquation (ptfinvc.get(), w.get(), 1e-6);
+			if (fabs (chi [3] / chi [1]) < eps)
+				chi = newVECsolve (ptfinvc.get(), w.get(), 1e-6);
 
 		} else if (((delta [2] < delta [3] + eps) || (delta [2] > delta [3] - eps)) && fabs (y [3]) < eps) {
 			// choose one value for w [2] from an infinite number
 
 			w [2] = w [1];
 			w [3] = sqrt (- t1 * t1 * delta [1] * delta [2] - w [2] * w [2]);
-			chi = NUMsolveEquation (ptfinv.get(), w.get(), 1e-6);
+			chi = newVECsolve (ptfinv.get(), w.get(), 1e-6);
 		}
 	} else {
 		// Case 3: page 634 use Newton-Raphson root finder
 
 		struct nr_struct me;
-		double xlambda, eps2 = (delta [2] - delta [1]) * 1e-6;
+		const double eps2 = (delta [2] - delta [1]) * 1e-6;
+		double xlambda;
 
 		me.y = y.at;
 		me.delta = delta.at;
 
 		NUMnrbis (nr_func, delta [1] + eps, delta [2] - eps2, & me, & xlambda);
 
-		for (integer i = 1; i <= 3; i++) {
+		for (integer i = 1; i <= 3; i++)
 			w [i] = y [i] / (1.0 - xlambda / delta [i]);
-		}
-		chi = NUMsolveEquation (ptfinv.get(), w.get(), 1e-6);
+		chi = newVECsolve (ptfinv.get(), w.get(), 1e-6);
 	}
 
-	if (out_alpha) *out_alpha = chi [1];
-	if (out_gamma) *out_gamma = chi [3];
+	if (out_alpha)
+		*out_alpha = chi [1];
+	if (out_gamma)
+		*out_gamma = chi [3];
 }
 
 /*
@@ -569,20 +559,20 @@ struct nr2_struct {
 };
 
 static void nr2_func (double b, double *f, double *df, void *data) {
-	struct nr2_struct *me = (struct nr2_struct *) data;
+	const struct nr2_struct *me = (struct nr2_struct *) data;
 
 	*df = - 0.5 / my alpha;
 	*f = my delta + *df * b;
 	for (integer i = 1; i <= my m; i ++) {
-		double c1 = (my c [i] - b);
-		double c2 = my x [i] / c1;
-		double c2sq = c2 * c2;
+		const double c1 = (my c [i] - b);
+		const double c2 = my x [i] / c1;
+		const double c2sq = c2 * c2;
 		*f -= c2sq;
 		*df += 2 * c2sq / c1;
 	}
 }
 
-autoVEC NUMsolveWeaklyConstrainedLinearRegression (constMAT f, constVEC phi, double alpha, double delta) {
+autoVEC newVECsolveWeaklyConstrainedLinearRegression (constMAT f, constVEC phi, double alpha, double delta) {
 	// n = f.nrow m=f.ncol
 	autoMAT u = newMATzero (f.ncol, f.ncol);
 	autoVEC c = newVECzero (f.ncol);
@@ -591,9 +581,8 @@ autoVEC NUMsolveWeaklyConstrainedLinearRegression (constMAT f, constVEC phi, dou
 	
 	autoSVD svd = SVD_createFromGeneralMatrix (f);
 
-	if (alpha == 0.0) {
+	if (alpha == 0.0)
 		t = SVD_solve (svd.get(), phi);	// standard least squares
-	}
 
 
 	// Step 1: Compute U and C from the eigendecomposition F'F = UCU'
@@ -602,28 +591,23 @@ autoVEC NUMsolveWeaklyConstrainedLinearRegression (constMAT f, constVEC phi, dou
 	autoINTVEC indx = NUMindexx (svd -> d.get());
 
 	for (integer j = f.ncol; j > 0; j --) {
-		double tmp = svd -> d [indx [j]];
+		const double tmp = svd -> d [indx [j]];
 		c [f.ncol - j + 1] = tmp * tmp;
-		for (integer k = 1; k <= f.ncol; k ++) {
+		for (integer k = 1; k <= f.ncol; k ++)
 			u [f.ncol - j + 1] [k] = svd -> v [indx [j]] [k];
-		}
 	}
 
 	integer q = 1;
-	double tol = 1e-6;
-	while (q < f.ncol && (c [f.ncol - q] - c [f.ncol]) < tol) {
+	const double tol = 1e-6;
+	while (q < f.ncol && (c [f.ncol - q] - c [f.ncol]) < tol)
 		q ++;
-	}
 
 	// step 2: x = U'F'phi
 
-	for (integer i = 1; i <= f.ncol; i ++) {
-		for (integer j = 1; j <= f.ncol; j ++) {
-			for (integer k = 1; k <= f.nrow; k ++) {
+	for (integer i = 1; i <= f.ncol; i ++)
+		for (integer j = 1; j <= f.ncol; j ++)
+			for (integer k = 1; k <= f.nrow; k ++)
 				x [i] += u [j] [i] * f [k] [j] * phi [k];
-			}
-		}
-	}
 
 	// step 3:
 
@@ -635,25 +619,22 @@ autoVEC NUMsolveWeaklyConstrainedLinearRegression (constMAT f, constVEC phi, dou
 	me.c = c.at;
 
 	double xqsq = 0.0;
-	for (integer j = f.ncol - q + 1; j <= f.ncol; j ++) {
+	for (integer j = f.ncol - q + 1; j <= f.ncol; j ++)
 		xqsq += x [j] * x [j];
-	}
 
 	integer r = f.ncol;
-	if (xqsq < tol) { /* xqsq == 0 */
+	if (xqsq < tol) { // xqsq == 0 
 		double fm, df;
 		r = f.ncol - q;
 		me.m = r;
-		nr2_func (c [f.ncol], &fm, &df, & me);
-		if (fm >= 0.0) { /* step 3.b1 */
+		nr2_func (c [f.ncol], & fm, & df, & me);
+		if (fm >= 0.0) { // step 3.b1
 			x [r + 1] = sqrt (fm);
-			for (integer j = 1; j <= r; j ++) {
+			for (integer j = 1; j <= r; j ++)
 				x [j] /= c [j] - c [f.ncol];
-			}
 			for (integer j = 1; j <= r + 1; j ++) {
-				for (integer k = 1; k <= r + 1; k ++) {
+				for (integer k = 1; k <= r + 1; k ++)
 					t [j] += u [j] [k] * x [k];
-				}
 			}
 			return t;
 		}
@@ -663,20 +644,19 @@ autoVEC NUMsolveWeaklyConstrainedLinearRegression (constMAT f, constVEC phi, dou
 	// step 3a & 3b2, determine interval lower bound for Newton-Raphson root finder
 
 	double xCx = 0.0;
-	for (integer j = 1; j <= r; j ++) {
+	for (integer j = 1; j <= r; j ++)
 		xCx += x [j] * x [j] / c [j];
-	}
-	double b0, bmin = delta > 0.0 ? - xCx / delta : -2.0 * sqrt (alpha * xCx);
-	double eps = (c [f.ncol] - bmin) * tol;
+
+	const double bmin = delta > 0.0 ? - xCx / delta : -2.0 * sqrt (alpha * xCx);
+	const double eps = (c [f.ncol] - bmin) * tol;
 
 	// find the root of d(psi(b)/db in interval (bmin, c [m])
-
+	double b0;
 	NUMnrbis (nr2_func, bmin + eps, c [f.ncol] - eps, & me, & b0);
 
 	for (integer j = 1; j <= r; j ++) {
-		for (integer k = 1; k <= r; k ++) {
+		for (integer k = 1; k <= r; k ++)
 			t [j] += u [j] [k] * x [k] / (c [k] - b0);
-		}
 	}
 	return t;
 }
@@ -685,7 +665,7 @@ autoVEC NUMsolveWeaklyConstrainedLinearRegression (constMAT f, constVEC phi, dou
 void NUMprocrustes (constMATVU const& x, constMATVU const& y, autoMAT *out_rotation, autoVEC *out_translation, double *out_scale) {
 	Melder_assert (x.nrow == y.nrow && x.ncol == y.ncol);
 	Melder_assert (x.nrow >= x.ncol);
-	bool orthogonal = ! out_translation || ! out_scale; // else similarity transform
+	const bool orthogonal = ! out_translation || ! out_scale; // else similarity transform
 
 	/*
 		Reference: Borg & Groenen (1997), Modern multidimensional scaling,
@@ -703,8 +683,9 @@ void NUMprocrustes (constMATVU const& x, constMATVU const& y, autoMAT *out_rotat
 	// 2. Decompose C by SVD: C = UDV' (our SVD has eigenvectors stored row-wise V!)
 
 	autoSVD svd = SVD_createFromGeneralMatrix (c.get());
-	double trace = NUMsum (svd -> d.all());
-	Melder_require (trace > 0.0, U"NUMprocrustes: degenerate configuration(s).");
+	const double trace = NUMsum (svd -> d.all());
+	Melder_require (trace > 0.0,
+		U"NUMprocrustes: degenerate configuration(s).");
 
 	// 3. T = VU'
 
@@ -724,9 +705,9 @@ void NUMprocrustes (constMATVU const& x, constMATVU const& y, autoMAT *out_rotat
 
 		// tr X'J YT == tr xc' yt
 
-		double traceXtJYT = NUMtrace2 (xc.transpose(), yt.get()); // trace (Xc'.(YT))
-		double traceYtJY = NUMtrace2 (y.transpose(), yc.get()); // trace (Y'.Yc)
-		longdouble scale = traceXtJYT / traceYtJY;
+		const double traceXtJYT = NUMtrace2 (xc.transpose(), yt.get()); // trace (Xc'.(YT))
+		const double traceYtJY = NUMtrace2 (y.transpose(), yc.get()); // trace (Y'.Yc)
+		const longdouble scale = traceXtJYT / traceYtJY;
 
 		// 5. Translation vector tr = (X - sYT)'1 / x.nrow
 		if (out_translation) {
@@ -739,18 +720,20 @@ void NUMprocrustes (constMATVU const& x, constMATVU const& y, autoMAT *out_rotat
 			}
 			*out_translation = translation.move();
 		}
-		if (out_scale) *out_scale = (double) scale;
+		if (out_scale)
+			*out_scale = (double) scale;
 	}
-	if (out_rotation) *out_rotation = rotation.move();
+	if (out_rotation)
+		*out_rotation = rotation.move();
 }
 
-
 double NUMmspline (constVEC knot, integer order, integer i, double x) {
-	integer jj, nSplines = knot.size - order;
+	const integer nSplines = knot.size - order;
 	
-	double y = 0.0;
-	Melder_require (nSplines > 0, U"No splines.");
-	Melder_require (order > 0 && i <= nSplines, U"Combination of order and index not correct.");
+	Melder_require (nSplines > 0,
+		U"No splines.");
+	Melder_require (order > 0 && i <= nSplines,
+		U"Combination of order and index not correct.");
 	/*
 		Find the interval where x is located.
 		M-splines of order k have degree k-1.
@@ -758,46 +741,44 @@ double NUMmspline (constVEC knot, integer order, integer i, double x) {
 		First and last 'order' knots are equal, i.e.,
 		knot [1] = ... = knot [order] && knot [knot.size-order+1] = ... knot [knot.size].
 	*/
-	
-	for (jj = order; jj <= knot.size - order + 1; jj ++) {
-		if (x < knot [jj]) break;
-	}
+	integer jj;
+	for (jj = order; jj <= knot.size - order + 1; jj ++)
+		if (x < knot [jj])
+			break;
+
 	if (jj < i || (jj > i + order) || jj == order || jj > (knot.size - order + 1))
-		return y;
+		return 0.0;
 
 
 	// Calculate M [i](x|1,t) according to eq.2.
 
-	integer ito = i + order - 1;
+	const integer ito = i + order - 1;
 	autoVEC m = newVECzero (order); 
-	for (integer j = i; j <= ito; j ++) {
+	for (integer j = i; j <= ito; j ++)
 		if (x >= knot [j] && x < knot [j + 1])
 			m [j - i + 1] = 1 / (knot [j + 1] - knot [j]);
-	}
 
 	// Iterate to get M [i](x|k,t)
 
 	for (integer k = 2; k <= order; k ++) {
 		for (integer j = i; j <= i + order - k; j ++) {
-			double kj = knot [j], kjpk = knot [j + k];
+			const double kj = knot [j], kjpk = knot [j + k];
 			if (kjpk > kj)
                 m [j - i + 1] = k * ((x - kj) * m [j - i + 1] + (kjpk - x) * m [j - i + 1 + 1]) / ((k - 1) * (kjpk - kj));
 		}
 	}
-	y = m [1];
-	return y;
+	return m [1];
 }
 
 double NUMispline (constVEC aknot, integer order, integer i, double x) {
-	integer j, orderp1 = order + 1;
+	const integer orderp1 = order + 1;
+	integer j;
+	for (j = orderp1; j <= aknot.size - order; j ++)
+		if (x < aknot [j])
+			break;
 
-	double y = 0.0;
-
-	for (j = orderp1; j <= aknot.size - order; j ++) {
-		if (x < aknot [j]) break;
-	}
 	if (-- j < i)
-		return y;
+		return 0.0;
 
 	if (j > i + order || (j == aknot.size - order && x == aknot [j]))
 		return 1.0;
@@ -808,8 +789,9 @@ double NUMispline (constVEC aknot, integer order, integer i, double x) {
 			j-k+1 <= i <= j'
 		2. the summation index m starts at 'i+1' instead of 'i'
 	*/
+	double y = 0.0;
 	for (integer m = i + 1; m <= j; m ++) {
-		double r = NUMmspline (aknot, orderp1, m, x);
+		const double r = NUMmspline (aknot, orderp1, m, x);
 		y += (aknot [m + orderp1] - aknot [m]) * r;
 	}
 	y /= orderp1;
@@ -826,22 +808,24 @@ double NUMwilksLambda (constVEC lambda, integer from, integer to) {
 
 double NUMfactln (int n) {
 	static double table [101];
-	if (n < 0) return undefined;
-	if (n <= 1) return 0.0;
+	if (n < 0)
+		return undefined;
+	if (n <= 1)
+		return 0.0;
 	return n > 100 ? NUMlnGamma (n + 1.0) : table [n] != 0.0 ? table [n] : (table [n] = NUMlnGamma (n + 1.0));
 }
 
 void NUMnrbis (void (*f) (double x, double *fx, double *dfx, void *closure), double xmin, double xmax, void *closure, double *root) {
 	double df, fx, fh, fl, tmp, xh, xl, tol;
-	integer itermax = 1000; // 80 or so could be enough; 60 is too small
+	const integer itermax = 1000; // 80 or so could be enough; 60 is too small
 
-	(*f) (xmin, &fl, &df, closure);
+	(*f) (xmin, & fl, & df, closure);
 	if (fl == 0.0) {
 		*root = xmin;
 		return;
 	}
 
-	(*f) (xmax, &fh, &df, closure);
+	(*f) (xmax, & fh, & df, closure);
 	if (fh == 0.0) {
 		*root = xmax;
 		return;
@@ -863,37 +847,33 @@ void NUMnrbis (void (*f) (double x, double *fx, double *dfx, void *closure), dou
 	double dxold = fabs (xmax - xmin);
 	double dx = dxold;
 	*root = 0.5 * (xmin + xmax);
-	(*f) (*root, &fx, &df, closure);
+	(*f) (*root, & fx, & df, closure);
 
 	for (integer iter = 1; iter <= itermax; iter ++) {
 		if ((((*root - xh) * df - fx) * ((*root - xl) * df - fx) >= 0.0) || (fabs (2.0 * fx) > fabs (dxold * df))) {
 			dxold = dx;
 			dx = 0.5 * (xh - xl);
 			*root = xl + dx;
-			if (xl == *root) {
+			if (xl == *root)
 				return;
-			}
 		} else {
 			dxold = dx;
 			dx = fx / df;
 			tmp = *root;
 			*root -= dx;
-			if (tmp == *root) {
+			if (tmp == *root)
 				return;
-			}
 		}
 		tol = NUMfpp -> eps	* (*root == 0.0 ? 1.0 : fabs (*root));
-		if (fabs (dx) < tol) {
+		if (fabs (dx) < tol)
 			return;
-		}
 
-		(*f) (*root, &fx, &df, closure);
+		(*f) (*root, & fx, & df, closure);
 
-		if (fx < 0.0) {
+		if (fx < 0.0)
 			xl = *root;
-		} else {
+		else
 			xh = *root;
-		}
 	}
 	Melder_warning (U"NUMnrbis: maximum number of iterations (", itermax, U") exceeded.");
 }
@@ -902,23 +882,30 @@ double NUMridders (double (*f) (double x, void *closure), double x1, double x2, 
 	/* There is still a problem with this implementation:
 		tol may be zero;
 	*/
-	double x3, x4, d, root = undefined, tol;
-	integer itermax = 100;
+	double d, root = undefined, tol;
+	const integer itermax = 100;
 
 	double f1 = f (x1, closure);
-	if (f1 == 0.0) return x1;
-	if (isundef (f1)) return undefined;
+	if (f1 == 0.0)
+		return x1;
+	if (isundef (f1))
+		return undefined;
 
 	double f2 = f (x2, closure);
-	if (f2 == 0.0) return x2;
-	if (isundef (f2)) return undefined;
-	if ((f1 < 0.0 && f2 < 0.0) || (f1 > 0.0 && f2 > 0.0)) return undefined;
+	if (f2 == 0.0)
+		return x2;
+	if (isundef (f2))
+		return undefined;
+	if ((f1 < 0.0 && f2 < 0.0) || (f1 > 0.0 && f2 > 0.0))
+		return undefined;
 
 	for (integer iter = 1; iter <= itermax; iter ++) {
-		x3 = 0.5 * (x1 + x2);
-		double f3 = f (x3, closure);
-		if (f3 == 0.0) return x3;
-		if (isundef (f3)) return undefined;
+		const double x3 = 0.5 * (x1 + x2);
+		const double f3 = f (x3, closure);
+		if (f3 == 0.0)
+			return x3;
+		if (isundef (f3))
+			return undefined;
 
 		// New guess: x4 = x3 + (x3 - x1) * sign(f1 - f2) * f3 / sqrt(f3^2 - f1*f2)
 
@@ -937,14 +924,14 @@ double NUMridders (double (*f) (double x, void *closure), double x1, double x2, 
 
 			// Perform bisection.
 
-			if (f1 > 0.0) { 
+			if (f1 > 0.0) {
 				// falling curve: f1 > 0, f2 < 0 
 				if (f3 > 0.0) {
-					x1 = x3; 
+					x1 = x3;
 					f1 = f3; // retain invariant: f1 > 0, f2 < 0
 				} else {
 					// f3 <= 0.0
-					x2 = x3; 
+					x2 = x3;
 					f2 = f3; // retain invariant: f1 > 0, f2 < 0
 				}
 			} else {
@@ -963,7 +950,7 @@ double NUMridders (double (*f) (double x, void *closure), double x1, double x2, 
 			if (isnan (d)) {
 				// pb: square root of denormalized small number fails on some computers
 				tol = NUMfpp -> eps * (x3 == 0.0 ? 1.0 : fabs (x3));
-				if (iter > 1 && fabs (x3 - root) < tol) 
+				if (iter > 1 && fabs (x3 - root) < tol)
 					return root;
 				root = x3;
 
@@ -972,58 +959,61 @@ double NUMridders (double (*f) (double x, void *closure), double x1, double x2, 
 				if (f1 > 0.0) {
 					// falling curve: f1 > 0, f2 < 0
 					if (f3 > 0.0) {
-						x1 = x3; 
+						x1 = x3;
 						f1 = f3; // retain invariant: f1 > 0, f2 < 0
 					} else {
 						// f3 <= 0.0
-						x2 = x3; 
+						x2 = x3;
 						f2 = f3; // retain invariant: f1 > 0, f2 < 0
 					}
 				} else {
 					// rising curve: f1 < 0, f2 > 0
 					if (f3 > 0.0) {
-						x2 = x3; 
+						x2 = x3;
 						f2 = f3; // retain invariant: f1 < 0, f2 > 0
 					} else {
 						// f3 < 0.0
-						x1 = x3; 
+						x1 = x3;
 						f1 = f3; // retain invariant: f1 < 0, f2 > 0 */
 					}
 				}
 			} else {
 				d = (x3 - x1) * f3 / d;
-				x4 = f1 - f2 < 0 ? x3 - d : x3 + d;
+				const double x4 = f1 - f2 < 0 ? x3 - d : x3 + d;
 				tol = NUMfpp -> eps * (x4 == 0.0 ? 1.0 : fabs (x4));
-				if (iter > 1 && fabs (x4 - root) < tol) 
+				if (iter > 1 && fabs (x4 - root) < tol)
 					return root;
 				root = x4;
-				double f4 = f (x4, closure);
-				if (f4 == 0.0) return root;
-				if (isundef (f4)) return undefined;
+				const double f4 = f (x4, closure);
+				if (f4 == 0.0)
+					return root;
+				if (isundef (f4))
+					return undefined;
 				if ((f1 > f2) == (d > 0.0) /* pb: instead of x3 < x4 */) {
 					if (SIGN (f3, f4) != f3) {
-						x1 = x3; 
+						x1 = x3;
 						f1 = f3;
-						x2 = x4; 
+						x2 = x4;
 						f2 = f4;
 					} else {
-						x1 = x4; 
+						x1 = x4;
 						f1 = f4;
 					}
 				} else {
 					if (SIGN (f3, f4) != f3) {
-						x1 = x4; 
+						x1 = x4;
 						f1 = f4;
-						x2 = x3; 
+						x2 = x3;
 						f2 = f3;
 					} else {
-						x2 = x4; 
+						x2 = x4;
 						f2 = f4;
 					}
 				}
 			}
 		}
-		if (fabs (x1 - x2) < tol) return root;
+		if (fabs (x1 - x2) < tol)
+			return root;
 	}
 
 	{
@@ -1044,41 +1034,47 @@ double NUMlogNormalQ (double x, double zeta, double sigma) {
 
 double NUMstudentP (double t, double df) {
 	if (df < 1.0) return undefined;
-	double ib = NUMincompleteBeta (0.5 * df, 0.5, df / (df + t * t));
-	if (isundef (ib)) return undefined;
-	ib *= 0.5;
-	return t < 0.0 ? ib : 1.0 - ib;
+	const double ib = NUMincompleteBeta (0.5 * df, 0.5, df / (df + t * t));
+	if (isundef (ib))
+		return undefined;
+	return t < 0.0 ? 0.5 * ib : 1.0 - 0.5 * ib;
 }
 
 double NUMstudentQ (double t, double df) {
-	if (df < 1) return undefined;
-	double ib = NUMincompleteBeta (0.5 * df, 0.5, df / (df + t * t));
-	if (isundef (ib)) return undefined;
-	ib *= 0.5;
-	return t > 0.0 ? ib : 1.0 - ib;
+	if (df < 1)
+		return undefined;
+	const double ib = NUMincompleteBeta (0.5 * df, 0.5, df / (df + t * t));
+	if (isundef (ib))
+		return undefined;
+	return t > 0.0 ? 0.5 * ib : 1.0 - 0.5 * ib;
 }
 
 double NUMfisherP (double f, double df1, double df2) {
-	if (f < 0.0 || df1 < 1.0 || df2 < 1.0) return undefined;
-	double ib = NUMincompleteBeta (0.5 * df2, 0.5 * df1, df2 / (df2 + f * df1));
-	if (isundef (ib)) return undefined;
+	if (f < 0.0 || df1 < 1.0 || df2 < 1.0)
+		return undefined;
+	const double ib = NUMincompleteBeta (0.5 * df2, 0.5 * df1, df2 / (df2 + f * df1));
+	if (isundef (ib))
+		return undefined;
 	return 1.0 - ib;
 }
 
 double NUMfisherQ (double f, double df1, double df2) {
-	if (f < 0.0 || df1 < 1.0 || df2 < 1.0) return undefined;
+	if (f < 0.0 || df1 < 1.0 || df2 < 1.0)
+		return undefined;
 	if (Melder_debug == 28) {
 		return NUMincompleteBeta (0.5 * df2, 0.5 * df1, df2 / (df2 + f * df1));
 	} else {
-		double result = gsl_cdf_fdist_Q (f, df1, df2);
-		if (isnan (result)) return undefined;
+		const double result = gsl_cdf_fdist_Q (f, df1, df2);
+		if (isnan (result))
+			return undefined;
 		return result;
 	}
 }
 
 double NUMinvGaussQ (double p) {
 	double pc = p;
-	if (p <= 0.0 || p >= 1.0) return undefined;
+	if (p <= 0.0 || p >= 1.0)
+		return undefined;
 	if (p > 0.5)
 		pc = 1.0 - p;
 	double t = sqrt (- 2.0 * log (pc));
@@ -1088,59 +1084,66 @@ double NUMinvGaussQ (double p) {
 }
 
 static double studentQ_func (double x, void *voidParams) {
-	struct pdf1_struct *params = (struct pdf1_struct *) voidParams;
-	double q = NUMstudentQ (x, params -> df);
+	const struct pdf1_struct *params = (struct pdf1_struct *) voidParams;
+	const double q = NUMstudentQ (x, params -> df);
 	return isundef (q) ? undefined : q - params -> p;
 }
 
 double NUMinvStudentQ (double p, double df) {
 	struct pdf1_struct params;
-	double pc = ( p > 0.5 ? 1.0 - p : p );
+	const double pc = ( p > 0.5 ? 1.0 - p : p );
 
-	if (p < 0.0 || p >= 1.0) return undefined;
+	if (p < 0.0 || p >= 1.0)
+		return undefined;
 
 	// Bracket the function f(x) = NUMstudentQ (x, df) - p.
 	
 	double xmax = 1.0;
 	for (;;) {
-		double q = NUMstudentQ (xmax, df);
-		if (isundef (q)) return undefined;
-		if (q < pc)  break;
+		const double q = NUMstudentQ (xmax, df);
+		if (isundef (q))
+			return undefined;
+		if (q < pc)
+			break;
 		xmax *= 2.0;
 	}
 
-	double xmin = ( xmax > 1.0 ? xmax / 2.0 : 0.0 );
+	const double xmin = ( xmax > 1.0 ? xmax / 2.0 : 0.0 );
 
 	// Find zero of f(x) with Ridders' method.
 
 	params. df = df;
 	params. p = pc;
-	double x = NUMridders (studentQ_func, xmin, xmax, & params);
-	if (isundef (x)) return undefined;
+	const double x = NUMridders (studentQ_func, xmin, xmax, & params);
+	if (isundef (x))
+		return undefined;
 	return p > 0.5 ? -x : x;
 }
 
 static double chiSquareQ_func (double x, void *voidParams) {
-	struct pdf1_struct *params = (struct pdf1_struct *) voidParams;
-	double q = NUMchiSquareQ (x, params -> df);
+	const struct pdf1_struct *params = (struct pdf1_struct *) voidParams;
+	const double q = NUMchiSquareQ (x, params -> df);
 	return isundef (q) ? undefined : q - params -> p;
 }
 
 double NUMinvChiSquareQ (double p, double df) {
 	struct pdf1_struct params;
 
-	if (p < 0.0 || p >= 1.0) return undefined;
+	if (p < 0.0 || p >= 1.0)
+		return undefined;
 
 	// Bracket the function f(x) = NUMchiSquareQ (x, df) - p.
 
 	double xmax = 1.0;
 	for (;;) {
-		double q = NUMchiSquareQ (xmax, df);
-		if (isundef (q)) return undefined;
-		if (q < p) break;
+		const double q = NUMchiSquareQ (xmax, df);
+		if (isundef (q))
+			return undefined;
+		if (q < p)
+			break;
 		xmax *= 2.0;
 	}
-	double xmin = ( xmax > 1.0 ? xmax / 2.0 : 0.0 );
+	const double xmin = ( xmax > 1.0 ? xmax / 2.0 : 0.0 );
 
 	// Find zero of f(x) with Ridders' method.
 
@@ -1151,27 +1154,32 @@ double NUMinvChiSquareQ (double p, double df) {
 
 static double fisherQ_func (double x, void *voidParams) {
 	struct pdf2_struct *params = (struct pdf2_struct *) voidParams;
-	double q = NUMfisherQ (x, params -> df1, params -> df2);
+	const double q = NUMfisherQ (x, params -> df1, params -> df2);
 	return ( isundef (q) ? undefined : q - params -> p );
 }
 
 double NUMinvFisherQ (double p, double df1, double df2) {
-	if (p <= 0.0 || p > 1.0 || df1 < 1.0 || df2 < 1.0) return undefined;
+	if (p <= 0.0 || p > 1.0 || df1 < 1.0 || df2 < 1.0)
+		return undefined;
 	if (Melder_debug == 29) {
 		//if (p == 1.0) return 0.0;
 		return gsl_cdf_fdist_Qinv (p, df1, df2);
 	} else {
 		struct pdf2_struct params;
-		if (p == 1.0) return 0.0;
+		if (p == 1.0)
+			return 0.0;
 		params. p = p;
 		params. df1 = df1;
 		params. df2 = df2;
 		double top = 1000.0;
 		for (;;) {
-			double q = NUMfisherQ (top, df1, df2);
-			if (isundef (q)) return undefined;
-			if (q < p) break;
-			if (top > 0.9e300) return undefined;
+			const double q = NUMfisherQ (top, df1, df2);
+			if (isundef (q))
+				return undefined;
+			if (q < p)
+				break;
+			if (top > 0.9e300)
+				return undefined;
 			top *= 1e9;
 		}
 		return NUMridders (fisherQ_func, 0.0, p > 0.5 ? 2.2 : top, & params);
@@ -1180,116 +1188,75 @@ double NUMinvFisherQ (double p, double df1, double df2) {
 
 double NUMbeta2 (double z, double w) {
 	gsl_sf_result result;
-	int status = gsl_sf_beta_e (z, w, &result);
+	const int status = gsl_sf_beta_e (z, w, &result);
 	return status == GSL_SUCCESS ? result.val : undefined;
 }
 
 double NUMlnBeta (double a, double b) {
 	gsl_sf_result result;
-	int status = gsl_sf_lnbeta_e (a, b, & result);
+	const int status = gsl_sf_lnbeta_e (a, b, & result);
 	return status == GSL_SUCCESS ? result.val : undefined;
 }
 
-double NUMnormalityTest_HenzeZirkler (constMAT data, double *inout_beta, double *out_tnb, double *out_lnmu, double *out_lnvar) {
-	const integer n = data.nrow, p = data.ncol;
-	if (*inout_beta <= 0)
-		*inout_beta = (1.0 / sqrt (2.0)) * pow ((1.0 + 2 * p) / 4.0, 1.0 / (p + 4.0)) * pow (n, 1.0 / (p + 4.0));
-	const double p2 = p / 2.0;
-	const double beta2 = *inout_beta * *inout_beta, beta4 = beta2 * beta2, beta8 = beta4 * beta4;
-	const double gamma = 1.0 + 2.0 * beta2, gamma2 = gamma * gamma, gamma4 = gamma2 * gamma2;
-	const double delta = 1.0 + beta2 * (4.0 + 3.0 * beta2), delta2 = delta * delta;
-	double prob = undefined;
-
-	double tnb = undefined, lnmu = undefined, lnvar = undefined;
-
-	if (n < 2 || p < 1)
-		return prob;
-
-	autoVEC zero = newVECzero (p);
-	autoMAT x = newMATcopy (data);
-
-	MATcentreEachColumn_inplace (x.get()); // x - xmean
-
-	autoMAT covar = MATcovarianceFromColumnCentredMatrix (x.get(), 0);
-
+void MATscaledResiduals (MAT const& residuals, constMAT const& data, constMAT const& covariance, constVEC const& means) {
 	try {
-		MATlowerCholeskyInverse_inplace (covar.get(), nullptr);
-		longdouble sumjk = 0.0, sumj = 0.0;
-		const double b1 = beta2 / 2.0, b2 = b1 / (1.0 + beta2);
-		/* Heinze & Wagner (1997), page 3
-			We use d [j] [k] = ||Y [j]-Y [k]||^2 = (Y [j]-Y [k])'S^(-1)(Y [j]-Y [k])
-			So d [j] [k]= d [k] [j] and d [j] [j] = 0
-		*/
-		for (integer j = 1; j <= n; j ++) {
-			for (integer k = 1; k < j; k ++) {
-				const double djk = NUMmahalanobisDistance (covar.get(), x.row (j), x.row(k));
-				sumjk += 2.0 * exp (-b1 * djk); // factor 2 because d [j] [k] == d [k] [j]
+		Melder_require (residuals.nrow == data.nrow && residuals.ncol == data.ncol,
+			U"The data and the residuals should have the same dimensions.");
+		Melder_require (covariance.ncol == means.size && data.ncol == means.size,
+			U"The dimensions of the means and the covariance have to conform with the data.");
+		autoVEC dif = newVECraw (data.ncol);
+		autoMAT lowerInverse = newMATcopy (covariance);
+		MATlowerCholeskyInverse_inplace (lowerInverse.get(), nullptr);
+		for (integer irow = 1; irow <= data.nrow; irow ++) {
+			dif <<= data.row (irow)  -  means;
+			residuals.row(irow) <<= 0.0;
+			if (lowerInverse.nrow == 1) { // diagonal matrix is one row matrix
+				residuals.row(irow) <<= lowerInverse.row(1)  *  dif.get();
+			} else {// square matrix
+				for (integer icol = 1; icol <= data.ncol; icol ++)
+					residuals [irow] [icol] = NUMinner (lowerInverse.row(icol).part (1, icol), dif.part (1, icol));
 			}
-			sumjk += 1.0; // for k == j
-			const double djj = NUMmahalanobisDistance (covar.get(), x.row (j), zero.get());
-			sumj += exp (-b2 * djj);
 		}
-		tnb = (1.0 / n) * (double) sumjk - 2.0 * pow (1.0 + beta2, - p2) * (double) sumj + n * pow (gamma, - p2); // n *
 	} catch (MelderError) {
-		Melder_clearError ();
-		tnb = 4.0 * n;
+		Melder_throw (U"MATscaleResiduals: not performed.");
 	}
-
-	double mu = 1.0 - pow (gamma, -p2) * (1.0 + p * beta2 / gamma + p * (p + 2) * beta4 / (2.0 * gamma2));
-	double var = 2.0 * pow (1.0 + 4.0 * beta2, -p2)
-		 + 2.0 * pow (gamma,  -p) * (1.0 + 2.0 * p * beta4 / gamma2  + 3.0 * p * (p + 2) * beta8 / (4.0 * gamma4))
-		 - 4.0 * pow (delta, -p2) * (1.0 + 3.0 * p * beta4 / (2.0 * delta) + p * (p + 2) * beta8 / (2.0 * delta2));
-	double mu2 = mu * mu;
-	lnmu = log (sqrt (mu2 * mu2 / (mu2 + var)));
-	lnvar = sqrt (log ((mu2 + var) / mu2));
-	if (out_lnmu) *out_lnmu = lnmu;
-	if (out_lnvar) *out_lnvar = lnvar;
-	if (out_tnb) *out_tnb = tnb;
-	prob = NUMlogNormalQ (tnb, lnmu, lnvar);
-	return prob;
 }
 
 /*************** Hz <--> other freq reps *********************/
 
 double NUMmelToHertz3 (double mel) {
-	if (mel < 0.0) {
+	if (mel < 0.0)
 		return undefined;
-	}
 	return mel < 1000.0 ? mel : 1000.0 * (exp (mel * log10 (2.0) / 1000.0) - 1.0);
 }
 
 double NUMhertzToMel3 (double hz) {
-	if (hz < 0.0) {
+	if (hz < 0.0)
 		return undefined;
-	}
 	return hz < 1000.0 ? hz : 1000.0 * log10 (1.0 + hz / 1000.0) / log10 (2.0);
 }
 
 double NUMmelToHertz2 (double mel) {
-	if (mel < 0.0) {
+	if (mel < 0.0)
 		return undefined;
-	}
 	return 700.0 * (pow (10.0, mel / 2595.0) - 1.0);
 }
 
 double NUMhertzToMel2 (double hz) {
-	if (hz < 0.0) {
+	if (hz < 0.0)
 		return undefined;
-	}
 	return 2595.0 * log10 (1.0 + hz / 700.0);
 }
 
 double NUMhertzToBark_traunmueller (double hz) {
-	if (hz < 0.0) {
+	if (hz < 0.0)
 		return undefined;
-	}
 	return 26.81 * hz / (1960.0 + hz) - 0.53;
 }
 
 double NUMbarkToHertz_traunmueller (double bark) {
-	if (bark < 0.0 || bark > 26.28) {
+	if (bark < 0.0 || bark > 26.28)
 		return undefined;
-	}
 	return 1960.0 * (bark + 0.53) / (26.28 - bark);
 }
 
@@ -1298,42 +1265,38 @@ double NUMbarkToHertz_schroeder (double bark) {
 }
 
 double NUMbarkToHertz_zwickerterhardt (double hz) {
-	if (hz < 0.0) {
+	if (hz < 0.0)
 		return undefined;
-	}
 	return 13.0 * atan (0.00076 * hz) + 3.5 * atan (hz / 7500.0);
 }
 
 double NUMhertzToBark_schroeder (double hz) {
-	if (hz < 0.0) {
+	if (hz < 0.0)
 		return undefined;
-	}
-	double h650 = hz / 650.0;
+	const double h650 = hz / 650.0;
 	return 7.0 * log (h650 + sqrt (1.0 + h650 * h650));
 }
 
 double NUMbarkToHertz2 (double bark) {
-	if (bark < 0.0) {
+	if (bark < 0.0)
 		return undefined;
-	}
 	return 650.0 * sinh (bark / 7.0);
 }
 
 double NUMhertzToBark2 (double hz) {
-	if (hz < 0) {
+	if (hz < 0)
 		return undefined;
-	}
-	double h650 = hz / 650.0;
+	const double h650 = hz / 650.0;
 	return 7.0 * log (h650 + sqrt (1.0 + h650 * h650));
 }
 
 double NUMbladonlindblomfilter_amplitude (double zc, double z) {
-	double dz = zc - z + 0.474;
+	const double dz = zc - z + 0.474;
 	return pow (10.0, 1.581 + 0.75 * dz - 1.75 * sqrt (1.0 + dz * dz));
 }
 
 double NUMsekeyhansonfilter_amplitude (double zc, double z) {
-	double dz = zc - z - 0.215;
+	const double dz = zc - z - 0.215;
 	return pow (10.0, 0.7 - 0.75 * dz - 1.75 * sqrt (0.196 + dz * dz));
 }
 
@@ -1350,7 +1313,7 @@ double NUMtriangularfilter_amplitude (double fl, double fc, double fh, double f)
 }
 
 double NUMformantfilter_amplitude (double fc, double bw, double f) {
-	double dq = (fc * fc - f * f) / (bw * f);
+	const double dq = (fc * fc - f * f) / (bw * f);
 	return 1.0 / (dq * dq + 1.0);
 }
 
@@ -1362,32 +1325,28 @@ aa = & work [n+n+1];
 for (i=1; i<=n+n+n; i ++) work [i]=0;
 */
 double VECburg (VEC a, constVEC x) {
-	integer n = x.size, m = a.size;
-	for (integer j = 1; j <= m; j ++) {
+	const integer n = x.size, m = a.size;
+	for (integer j = 1; j <= m; j ++)
 		a [j] = 0.0;
-	}
 
 	autoVEC b1 = newVECzero (n), b2 = newVECzero (n), aa = newVECzero (m);
 
 	// (3)
 
 	longdouble p = 0.0;
-	for (integer j = 1; j <= n; j ++) {
+	for (integer j = 1; j <= n; j ++)
 		p += x [j] * x [j];
-	}
 
 	longdouble xms = p / n;
-	if (xms <= 0.0) {
+	if (xms <= 0.0)
 		return xms;	// warning empty
-	}
 
 	// (9)
 
 	b1 [1] = x [1];
 	b2 [n - 1] = x [n];
-	for (integer j = 2; j <= n - 1; j ++) {
+	for (integer j = 2; j <= n - 1; j ++)
 		b1 [j] = b2 [j - 1] = x [j];
-	}
 
 	for (integer i = 1; i <= m; i ++) {
 		// (7)
@@ -1398,9 +1357,8 @@ double VECburg (VEC a, constVEC x) {
 			denum += b1 [j] * b1 [j] + b2 [j] * b2 [j];
 		}
 
-		if (denum <= 0.0) {
+		if (denum <= 0.0)
 			return 0.0;	// warning ill-conditioned
-		}
 
 		a [i] = 2.0 * num / denum;
 
@@ -1410,17 +1368,15 @@ double VECburg (VEC a, constVEC x) {
 
 		// (5)
 
-		for (integer j = 1; j <= i - 1; j ++) {
+		for (integer j = 1; j <= i - 1; j ++)
 			a [j] = aa [j] - a [i] * aa [i - j];
-		}
 
 		if (i < m) {
 
 			// (8) Watch out: i -> i+1
 
-			for (integer j = 1; j <= i; j ++) {
+			for (integer j = 1; j <= i; j ++)
 				aa [j] = a [j];
-			}
 			for (integer j = 1; j <= n - i - 1; j ++) {
 				b1 [j] -= aa [i] * b2 [j];
 				b2 [j] = b2 [j + 1] - aa [i] * b1 [j + 1];
@@ -1432,51 +1388,46 @@ double VECburg (VEC a, constVEC x) {
 
 autoVEC newVECburg (constVEC x, integer numberOfPredictionCoefficients, double *out_xms) {
 	autoVEC a = newVECraw (numberOfPredictionCoefficients);
-	double xms = VECburg (a.get(), x);
-	if (out_xms) *out_xms = xms;
+	const double xms = VECburg (a.get(), x);
+	if (out_xms)
+		*out_xms = xms;
 	return a;
 }
 
 void NUMdmatrix_to_dBs (MAT m, double ref, double factor, double floor) {
-	double ref_db, factor10 = factor * 10.0;
-	double max = m [1] [1], min = max;
+	const double factor10 = factor * 10.0;
+	MelderExtremaWithInit extrema;
 
 	Melder_assert (ref > 0 && factor > 0);
 
-	for (integer irow = 1; irow <= m.nrow; irow ++) {
-		for (integer icol = 1; icol <= m.ncol; icol ++) {
-			if (m [irow] [icol] > max) {
-				max = m [irow] [icol];
-			} else if (m [irow] [icol] < min) {
-				min = m [irow] [icol];
-			}
-		}
-	}
+	for (integer irow = 1; irow <= m.nrow; irow ++)
+		for (integer icol = 1; icol <= m.ncol; icol ++)
+			extrema.update (m [irow] [icol]);
+				
 	
-	Melder_require (min >= 0.0 && max >= 0.0, U"All matrix elements should be positive.");
+	Melder_require (extrema.min >= 0.0 && extrema.max >= 0.0,
+		U"All matrix elements should be positive.");
 	
-	ref_db = factor10 * log10 (ref);
+	const double ref_db = factor10 * log10 (ref);
 
 	for (integer irow = 1; irow <= m.nrow; irow ++) {
 		for (integer icol = 1; icol <= m.ncol; icol ++) {
 			double mij = floor;
 			if (m [irow] [icol] > 0.0) {
 				mij = factor10 * log10 (m [irow] [icol]) - ref_db;
-				if (mij < floor) {
+				if (mij < floor)
 					mij = floor;
-				}
 			}
 			m [irow] [icol] = mij;
 		}
 	}
 }
 
-autoMAT MATcosinesTable (integer  n) {
+autoMAT MATcosinesTable (integer n) {
 	autoMAT result = newMATraw (n, n);
-	for (integer irow = 1; irow <= n; irow ++) {
+	for (integer irow = 1; irow <= n; irow ++)
 		for (integer icol = 1; icol <= n; icol ++)
 			result [irow] [icol] = cos (NUMpi * (irow - 1) * (icol - 0.5) / n);
-	}
 	return result;
 }
 
@@ -1511,8 +1462,8 @@ void NUMcubicSplineInterpolation_getSecondDerivatives (VEC out_y, constVEC x, co
 	}
 
 	for (integer i = 2; i <= x.size - 1; i ++) {
-		double sig = (x [i] - x [i - 1]) / (x [i + 1] - x [i - 1]);
-		double p = sig * out_y [i - 1] + 2.0;
+		const double sig = (x [i] - x [i - 1]) / (x [i + 1] - x [i - 1]);
+		const double p = sig * out_y [i - 1] + 2.0;
 		out_y [i] = (sig - 1.0) / p;
 		u [i] = (y [i + 1] - y [i]) / (x [i + 1] - x [i]) - (y [i] - y [i - 1]) / (x [i] - x [i - 1]);
 		u [i] = (6.0 * u [i] / (x [i + 1] - x [i - 1]) - sig * u [i - 1]) / p;
@@ -1541,41 +1492,41 @@ double NUMcubicSplineInterpolation (constVEC x, constVEC y, constVEC y2, double 
 		else
 			klo = k;
 	}
-	double h = x [khi] - x [klo];
+	const double h = x [khi] - x [klo];
 	Melder_require (h != 0.0,
 		U"NUMcubicSplineInterpolation: bad input value.");
 	
-	double a = (x [khi] - xin) / h;
-	double b = (xin - x [klo]) / h;
-	double yint = a * y [klo] + b * y [khi] + ((a * a * a - a) * y2 [klo] + (b * b * b - b) * y2 [khi]) * (h * h) / 6.0;
+	const double a = (x [khi] - xin) / h;
+	const double b = (xin - x [klo]) / h;
+	const double yint = a * y [klo] + b * y [khi] + ((a * a * a - a) * y2 [klo] + (b * b * b - b) * y2 [khi]) * (h * h) / 6.0;
 	return yint;
 }
 
 double NUMsinc (const double x) {
 	struct gsl_sf_result_struct result;
-	int status = gsl_sf_sinc_e (x / NUMpi, &result);
+	const int status = gsl_sf_sinc_e (x / NUMpi, &result);
 	return status == GSL_SUCCESS ? result. val : undefined;
 }
 
 double NUMsincpi (const double x) {
 	struct gsl_sf_result_struct result;
-	int status = gsl_sf_sinc_e (x, &result);
+	const int status = gsl_sf_sinc_e (x, &result);
 	return status == GSL_SUCCESS ? result. val : undefined;
 }
 
 /* Does the line segment from (x1,y1) to (x2,y2) intersect with the line segment from (x3,y3) to (x4,y4)? */
 int NUMdoLineSegmentsIntersect (double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4) {
-	int o11 = NUMgetOrientationOfPoints (x1, y1, x2, y2, x3, y3);
-	int o12 = NUMgetOrientationOfPoints (x1, y1, x2, y2, x4, y4);
-	int o21 = NUMgetOrientationOfPoints (x3, y3, x4, y4, x1, y1);
-	int o22 = NUMgetOrientationOfPoints (x3, y3, x4, y4, x2, y2);
+	const int o11 = NUMgetOrientationOfPoints (x1, y1, x2, y2, x3, y3);
+	const int o12 = NUMgetOrientationOfPoints (x1, y1, x2, y2, x4, y4);
+	const int o21 = NUMgetOrientationOfPoints (x3, y3, x4, y4, x1, y1);
+	const int o22 = NUMgetOrientationOfPoints (x3, y3, x4, y4, x2, y2);
 	return ((o11 * o12 < 0) && (o21 * o22 < 0)) || (o11 *o12 *o21 *o22 == 0);
 }
 
 int NUMgetOrientationOfPoints (double x1, double y1, double x2, double y2, double x3, double y3) {
 	int orientation;
-	longdouble dx2 = x2 - x1, dy2 = y2 - y1;
-	longdouble dx3 = x3 - x1, dy3 = y3 - y1;
+	const longdouble dx2 = x2 - x1, dy2 = y2 - y1;
+	const longdouble dx3 = x3 - x1, dy3 = y3 - y1;
 	if (dx2 * dy3 > dy2 * dx3)
 		orientation = -1;
 	else if (dx2 * dy3 < dy2 * dx3)
@@ -1628,29 +1579,30 @@ int NUMgetIntersectionsWithRectangle (double x1, double y1, double x2, double y2
 	*/
 
 	for (integer i = 1; i <= 4; i ++) {
-		double denom = (x [i + 1] - x [i]) * (y2 - y1) - (y [i + 1] - y [i]) * (x2 - x1);
+		const double denom = (x [i + 1] - x [i]) * (y2 - y1) - (y [i + 1] - y [i]) * (x2 - x1);
 		if (denom == 0.0)
 			continue;
 		
 		// We have an intersection.
 		
-		double t = ((y [i] - y1) * (x2 - x1) - (x [i] - x1) * (y2 - y1)) / denom;
+		const double t = ((y [i] - y1) * (x2 - x1) - (x [i] - x1) * (y2 - y1)) / denom;
 		if (t < 0.0 || t >= 1.0)
 			continue;
 		
 		// Intersection is within rectangle side.
 		
-		double x3 = x [i] + t * (x [i + 1] - x [i]);
-		double y3 = y [i] + t * (y [i + 1] - y [i]);
+		const double x3 = x [i] + t * (x [i + 1] - x [i]);
+		const double y3 = y [i] + t * (y [i + 1] - y [i]);
 		
 		// s must also be valid
 		
-		double s = ( x1 != x2 ? (x3 - x1) / (x2 - x1) : (y3 - y1) / (y2 - y1) );
+		const double s = ( x1 != x2 ? (x3 - x1) / (x2 - x1) : (y3 - y1) / (y2 - y1) );
 		if (s < 0.0 || s >= 1.0)
 			continue;
 
 		ni ++;
-		Melder_require (ni <= 3, U"Too many intersections.");
+		Melder_require (ni <= 3,
+			U"Too many intersections.");
 		
 		xi [ni] = x3;
 		yi [ni] = y3;
@@ -1773,7 +1725,8 @@ bool NUMclipLineWithinRectangle (double xl1, double yl1, double xl2, double yl2,
 	}
 	if (ncrossings == 0)
 		return false;
-	Melder_require (ncrossings <= 2, U"Too many crossings found.");
+	Melder_require (ncrossings <= 2,
+		U"Too many crossings found.");
 
 	/*
 		if start and endpoint of line are outside rectangle and ncrossings == 1, than the line only touches.
@@ -1793,15 +1746,20 @@ bool NUMclipLineWithinRectangle (double xl1, double yl1, double xl2, double yl2,
 	
 end:
 	
-	if (out_xo1) *out_xo1 = xo1;
-	if (out_yo1) *out_yo1 = yo1;
-	if (out_xo2) *out_xo2 = xo2;
-	if (out_yo2) *out_yo2 = yo2;
+	if (out_xo1)
+		*out_xo1 = xo1;
+	if (out_yo1)
+		*out_yo1 = yo1;
+	if (out_xo2)
+		*out_xo2 = xo2;
+	if (out_yo2)
+		*out_yo2 = yo2;
 	return true;
 }
 
 void NUMgetEllipseBoundingBox (double a, double b, double cospsi, double *out_width, double *out_height) {
-	Melder_assert (cospsi >= -1.0 && cospsi <= 1.0);
+	Melder_require (cospsi >= -1.0 && cospsi <= 1.0,
+		U"NUMgetEllipseBoundingBox: abs (cospi) should not exceed 1.", cospsi);
 	double width, height;
 	if (cospsi == 1.0) { // a-axis along x-axis
 		width = a;
@@ -1810,14 +1768,16 @@ void NUMgetEllipseBoundingBox (double a, double b, double cospsi, double *out_wi
 		width = b;
 		height = a;
 	} else {
-		double psi = acos (cospsi), sinpsi = sin (psi);
+		const double psi = acos (cospsi), sinpsi = sin (psi);
 		double phi = atan2 (-b * sinpsi, a * cospsi);
 		width = fabs (a * cospsi * cos (phi) - b * sinpsi * sin (phi));
 		phi = atan2 (b * cospsi, a * sinpsi);
 		height = fabs (a * sinpsi * cos (phi) + b * cospsi * sin (phi));
 	}
-	if (out_width) *out_width = width;
-	if (out_height) *out_height = height;
+	if (out_width)
+		*out_width = width;
+	if (out_height)
+		*out_height = height;
 }
 
 /*
@@ -1827,30 +1787,30 @@ double NUMminimize_brent (double (*f) (double x, void *closure), double a, doubl
 	double x, v, fv, w, fw;
 	const double golden = 1 - NUM_goldenSection;
 	const double sqrt_epsilon = sqrt (NUMfpp -> eps);
-	integer itermax = 60;
+	const integer itermax = 60;
 
 	Melder_assert (tol > 0 && a < b);
 
-	/* First step - golden section */
-
+	/*
+		First step - golden section
+	*/
 	v = a + golden * (b - a);
 	fv = (*f) (v, closure);
-	x = v; w = v;
-	*fx = fv; fw = fv;
+	x = v;
+	w = v;
+	*fx = fv;
+	fw = fv;
 
 	for (integer iter = 1; iter <= itermax; iter ++) {
+		const double middle_range = (a + b) / 2.0;
+		const double tol_act = sqrt_epsilon * fabs (x) + tol / 3.0;
 		double range = b - a;
-		double middle_range = (a + b) / 2.0;
-		double tol_act = sqrt_epsilon * fabs (x) + tol / 3.0;
-		double new_step; /* Step at this iteration */
-
-		if (fabs (x - middle_range) + range / 2.0 <= 2.0 * tol_act) {
+		if (fabs (x - middle_range) + range / 2.0 <= 2.0 * tol_act)
 			return x;
-		}
 
 		// Obtain the golden section step
 
-		new_step = golden * (x < middle_range ? b - x : a - x);
+		double new_step = golden * (x < middle_range ? b - x : a - x);
 
 		// Decide if the parabolic interpolation can be tried
 
@@ -1860,16 +1820,15 @@ double NUMminimize_brent (double (*f) (double x, void *closure), double a, doubl
 				division operation is delayed until last moment.
 			*/
 
-			double t = (x - w) * (*fx - fv);
+			const double t = (x - w) * (*fx - fv);
 			double q = (x - v) * (*fx - fw);
 			double p = (x - v) * q - (x - w) * t;
 			q = 2.0 * (q - t);
 
-			if (q > 0.0) {
+			if (q > 0.0)
 				p = -p;
-			} else {
+			else
 				q = -q;
-			}
 
 			/*
 				If x+p/q falls in [a,b], not too close to a and b,
@@ -1887,15 +1846,14 @@ double NUMminimize_brent (double (*f) (double x, void *closure), double a, doubl
 
 		// Adjust the step to be not less than tolerance.
 
-		if (fabs (new_step) < tol_act) {
+		if (fabs (new_step) < tol_act)
 			new_step = new_step > 0.0 ? tol_act : - tol_act;
-		}
 
 		// Obtain the next approximation to min	and reduce the enveloping range
 
 		{
-			double t = x + new_step;	// Tentative point for the min
-			double ft = (*f) (t, closure);
+			const double t = x + new_step;	// Tentative point for the min
+			const double ft = (*f) (t, closure);
 
 			/*
 				If t is a better approximation, reduce the range so that
@@ -1904,24 +1862,28 @@ double NUMminimize_brent (double (*f) (double x, void *closure), double a, doubl
 			*/
 
 			if (ft <= *fx) {
-				if (t < x) {
+				if (t < x)
 					b = x;
-				} else {
+				else
 					a = x;
-				}
 
-				v = w; w = x; x = t;
-				fv = fw; fw = *fx; *fx = ft;
+				v = w;
+				w = x;
+				x = t;
+				fv = fw;
+				fw = *fx;
+				*fx = ft;
 			} else {
-				if (t < x) {
+				if (t < x)
 					a = t;
-				} else {
+				else
 					b = t;
-				}
 
 				if (ft <= fw || w == x) {
-					v = w; w = t;
-					fv = fw; fw = ft;
+					v = w;
+					w = t;
+					fv = fw;
+					fw = ft;
 				} else if (ft <= fv || v == x || v == w) {
 					v = t;
 					fv = ft;
@@ -1934,33 +1896,24 @@ double NUMminimize_brent (double (*f) (double x, void *closure), double a, doubl
 }
 
 /*
-	probs is probability vector, i.e. all 0 <= probs [i] <= 1 and sum(i=1;i=nprobs, probs [i])= 1
-	p is a probability
+	probs is probability vector, i.e. all 0 <= probs [i] <= 1 and sum(i=1...probs.size, probs [i])= 1
 */
-integer NUMgetIndexFromProbability (constVEC probs, double p) { //TODO HMM zero start matrices
+integer NUMgetIndexFromProbability (constVEC probs, double p) {
 	integer index = 1;
 	double psum = probs [index];
-	while (p > psum && index < probs.size) {
+	while (p > psum && index < probs.size)
 		psum += probs [++ index];
-	}
-	return index;
-}
-integer NUMgetIndexFromProbability (double *probs, integer nprobs, double p) { //TODO HMM zero start matrices
-	integer index = 1;
-	double psum = probs [index];
-	while (p > psum && index < nprobs) {
-		psum += probs [++ index];
-	}
 	return index;
 }
 
 // straight line fitting
 
-void NUMlineFit_theil (constVEC x, constVEC y, double *out_m, double *out_intercept, bool incompleteMethod)
-{
+void NUMlineFit_theil (constVEC const& x, constVEC const& y, double *out_m, double *out_intercept, bool completeMethod) {
 	try {
-		Melder_assert (x.size == y.size);
-		/* Theil's incomplete method:
+		Melder_require (x.size == y.size,
+			U"NUMlineFit_theil: the sizes of the two vectors should be equal.");
+		/*
+			Theil's incomplete method:
 			Split (x [i],y [i]) as
 			(x [i],y [i]), (x [N+i],y [N=i], i=1..numberOfPoints/2
 			m [i] = (y [N+i]-y [i])/(x [N+i]-x [i])
@@ -1977,9 +1930,9 @@ void NUMlineFit_theil (constVEC x, constVEC y, double *out_m, double *out_interc
 		} else {
 			integer numberOfCombinations;
 			autoVEC mbs;
-			if (incompleteMethod) {
+			if (! completeMethod) {
 				numberOfCombinations = x.size / 2;
-				mbs = newVECzero (x.size); // allocate twice the space for convenience later
+				mbs = newVECzero (x.size); // allocate twice to get the intercepts
 				integer n2 = x.size % 2 == 1 ? numberOfCombinations + 1 : numberOfCombinations;
 				for (integer i = 1; i <= numberOfCombinations; i ++)
 					mbs [i] = (y [n2 + i] - y [i]) / (x [n2 + i] - x [i]);
@@ -1990,6 +1943,7 @@ void NUMlineFit_theil (constVEC x, constVEC y, double *out_m, double *out_interc
 				for (integer i = 1; i < x.size; i ++)
 					for (integer j = i + 1; j <= x.size; j ++)
 						mbs [++ index] = (y [j] - y [i]) / (x [j] - x [i]);
+				Melder_assert (index == numberOfCombinations);
 			}
 			VECsort_inplace (mbs.part (1, numberOfCombinations));
 			m = NUMquantile (mbs.part (1, numberOfCombinations), 0.5);
@@ -1998,38 +1952,43 @@ void NUMlineFit_theil (constVEC x, constVEC y, double *out_m, double *out_interc
 			VECsort_inplace (mbs.part (1, x.size));
 			intercept = NUMquantile (mbs.part (1, x.size), 0.5);
 		}
-		if (out_m) *out_m = m;
-		if (out_intercept) *out_intercept = intercept;
+		if (out_m)
+			*out_m = m;
+		if (out_intercept)
+			*out_intercept = intercept;
 	} catch (MelderError) {
 		Melder_throw (U"No line fit (Theil's method).");
 	}
 }
 
-void NUMlineFit_LS (constVEC x, constVEC y, double *out_m, double *out_intercept) {
-	Melder_assert (x.size == y.size);
-	double sx = NUMsum (x);
-	double sy = NUMsum (y);
-	double xmean = sx / x.size;
+void NUMlineFit_LS (constVEC const& x, constVEC const& y, double *out_m, double *out_intercept) {
+	Melder_require (x.size == y.size,
+		U"NUMlineFit_LS: the sizes of the two vectors should be equal.");
+	const double sx = NUMsum (x);
+	const double xmean = sx / x.size;
 	longdouble st2 = 0.0, m = 0.0;
 	for (integer i = 1; i <= x.size; i ++) {
-		double t = x [i] - xmean;
+		const double t = x [i] - xmean;
 		st2 += t * t;
 		m += t * y [i];
 	}
 	// y = m*x + b
 	m /= st2;
-	if (out_intercept) *out_intercept = (sy - m * sx) / x.size;
-	if (out_m) *out_m = m;
+	if (out_intercept) {
+		const double sy = NUMsum (y);
+		*out_intercept = (sy - m * sx) / x.size;
+	}
+	if (out_m)
+		*out_m = m;
 }
 
 void NUMlineFit (constVEC x, constVEC y, double *out_m, double *out_intercept, int method) {
-	if (method == 1) {
+	if (method == 1)
 		NUMlineFit_LS (x, y, out_m, out_intercept);
-	} else if (method == 3) {
-		NUMlineFit_theil (x, y, out_m, out_intercept, false);
-	} else {
+	else if (method == 3)
 		NUMlineFit_theil (x, y, out_m, out_intercept, true);
-	}
+	else
+		NUMlineFit_theil (x, y, out_m, out_intercept, false);
 }
 
 // IEEE: Programs for digital signal processing section 4.3 LPTRN
@@ -2042,11 +2001,11 @@ void VECrc_from_lpc (VEC rc, constVEC lpc) {
 	a.get() <<= lpc;
 	for (integer m = lpc.size; m > 0; m--) {
 		rc [m] = a [m];
-		Melder_require (fabs (rc [m]) <= 1.0, U"Relection coefficient [", m, U"] larger than 1.");
+		Melder_require (fabs (rc [m]) <= 1.0,
+			U"Relection coefficient [", m, U"] larger than 1.");
 		b.part (1, m) <<= a.part (1, m);
-		for (integer i = 1; i < m; i ++) {
+		for (integer i = 1; i < m; i ++)
 			a [i] = (b [i] - rc [m] * b [m - i]) / (1.0 - rc [m] * rc [m]);
-		}
 	}
 }
 
@@ -2104,7 +2063,8 @@ void NUMlpc_lpc_to_rc (double *lpc, integer p, double *rc) {
 	autoVEC a <<= VEC(lpc, p);
 	for (integer m = p; m > 0; m--) {
 		rc [m] = a [m];
-		Melder_require (fabs (rc [m]) <= 1.0, U"Relection coefficient [", m, U"] larger than 1.");
+		Melder_require (fabs (rc [m]) <= 1.0,
+			U"Relection coefficient [", m, U"] larger than 1.");
 		for (integer i = 1; i < m; i ++) {
 			b [i] = a [i];
 		}
@@ -2225,8 +2185,8 @@ void NUMlpc_lpc_to_area (double *lpc, integer m, double *area) {
 
 inline static double Stirling (double y1)
 {
-	double y2 = y1 * y1;
-	double s = (13860.0 - (462.0 - (132.0 - (99.0 - 140.0 / y2) / y2) / y2) / y2) / y1 / 166320.0;
+	const double y2 = y1 * y1;
+	const double s = (13860.0 - (462.0 - (132.0 - (99.0 - 140.0 / y2) / y2) / y2) / y2) / y1 / 166320.0;
 	return s;
 }
 
@@ -2239,17 +2199,18 @@ integer NUMrandomBinomial (double p, integer n) {
 	integer ix;			// return value
 	bool flipped = false;
 
-	if (n == 0) return 0;
+	if (n == 0)
+		return 0;
 	if (p > 0.5) {
 		p = 1.0 - p;	// work with small p
 		flipped = true;
 	}
 
-	double q = 1.0 - p;
-	double s = p / q;
-	double np = n * p;
+	const double q = 1.0 - p;
+	const double s = p / q;
+	const double np = n * p;
 
-	/* 
+	/*
 		Inverse cdf logic for small mean (BINV in K+S)
 	*/
 
@@ -2257,7 +2218,7 @@ integer NUMrandomBinomial (double p, integer n) {
 		double f0 = pow (q, n); // djmw gsl_pow_int (q, n); f(x), starting with x=0
 
 		while (1) {
-			/* 
+			/*
 				This while(1) loop will almost certainly only loop once; but
 				if u=1 to within a few epsilons of machine precision, then it
 				is possible for roundoff to prevent the main loop over ix to
@@ -2270,15 +2231,14 @@ integer NUMrandomBinomial (double p, integer n) {
 			double u = NUMrandomUniform (0.0, 1.0); // djmw gsl_rng_uniform (rng);
 
 			for (ix = 0; ix <= BINV_CUTOFF; ++ ix) {
-				if (u < f) {
+				if (u < f)
 					goto Finish;
-				}
 				u -= f;
 				// Use recursion f(x+1) = f(x)* [(n-x)/(x+1)]* [p/(1-p)]
 				f *= s * (n - ix) / (ix + 1.0);
 			}
 
-			/* 
+			/*
 				It should be the case that the 'goto Finish' was encountered
 				before this point was ever reached. But if we have reached
 				this point, then roundoff has prevented u from decreasing
@@ -2301,17 +2261,17 @@ integer NUMrandomBinomial (double p, integer n) {
 		}
 	} else {
 		
-		/* 
+		/*
 			For n >= SMALL_MEAN, we invoke the BTPE algorithm
 		*/
 
-		double ffm = np + p;		// ffm = n*p+p
-		integer m = (integer) ffm;	// m = int floor [n*p+p]
-		double fm = m;				// fm = double m
-		double xm = fm + 0.5;	 	// xm = half integer mean (tip of triangle)
-		double npq = np * q;		// npq = n*p*q
+		const double ffm = np + p;		// ffm = n*p+p
+		const integer m = (integer) ffm;	// m = int floor [n*p+p]
+		const double fm = m;				// fm = double m
+		const double xm = fm + 0.5;	 	// xm = half integer mean (tip of triangle)
+		const double npq = np * q;		// npq = n*p*q
 
-		/* 
+		/*
 			Compute cumulative area of tri, para, exp tails
 
 			p1: radius of triangle region; since height=1, also: area of region
@@ -2324,29 +2284,27 @@ integer NUMrandomBinomial (double p, integer n) {
 			These magic numbers are not adjustable...at least not easily!
 		*/
 		
-		double p1 = Melder_roundDown (2.195 * sqrt (npq) - 4.6 * q) + 0.5;
+		const double p1 = Melder_roundDown (2.195 * sqrt (npq) - 4.6 * q) + 0.5;
 
 		// xl, xr: left and right edges of triangle
-		double xl = xm - p1;
-		double xr = xm + p1;
+		const double xl = xm - p1;
+		const double xr = xm + p1;
 
-		/* 
+		/*
 			Parameter of exponential tails
 			Left tail:  t(x) = c*exp(-lambda_l* [xl - (x+0.5)])
 			Right tail: t(x) = c*exp(-lambda_r* [(x+0.5) - xr])
 		*/
 
-		double c = 0.134 + 20.5 / (15.3 + fm);
-		double p2 = p1 * (1.0 + c + c);
-
-		double al = (ffm - xl) / (ffm - xl * p);
-		double lambda_l = al * (1.0 + 0.5 * al);
-		double ar = (xr - ffm) / (xr * q);
-		double lambda_r = ar * (1.0 + 0.5 * ar);
-		double p3 = p2 + c / lambda_l;
-		double p4 = p3 + c / lambda_r;
+		const double c = 0.134 + 20.5 / (15.3 + fm);
+		const double p2 = p1 * (1.0 + c + c);
+		const double al = (ffm - xl) / (ffm - xl * p);
+		const double lambda_l = al * (1.0 + 0.5 * al);
+		const double ar = (xr - ffm) / (xr * q);
+		const double lambda_r = ar * (1.0 + 0.5 * ar);
+		const double p3 = p2 + c / lambda_l;
+		const double p4 = p3 + c / lambda_r;
 		double var, accept;
-		double u, v; /* random variates */
 
 TryAgain:
 
@@ -2354,8 +2312,8 @@ TryAgain:
 			Generate random variates, u specifies which region: Tri, Par, Tail
 		*/
 		
-		u = p4 * NUMrandomUniform (0.0, 1.0); // djmw gsl_rng_uniform (rng) * p4;
-		v = NUMrandomUniform (0.0, 1.0); // djmw gsl_rng_uniform (rng);
+		const double u = p4 * NUMrandomUniform (0.0, 1.0); // djmw gsl_rng_uniform (rng) * p4;
+		double v = NUMrandomUniform (0.0, 1.0); // djmw gsl_rng_uniform (rng);
 
 		if (u <= p1) {
 			// Triangular region
@@ -2363,29 +2321,26 @@ TryAgain:
 			goto Finish;
 		} else if (u <= p2) {
 			// Parallelogram region
-			double x = xl + (u - p1) / c;
+			const double x = xl + (u - p1) / c;
 			v = v * c + 1.0 - fabs (x - xm) / p1;
-			if (v > 1.0 || v <= 0.0) {
+			if (v > 1.0 || v <= 0.0)
 				goto TryAgain;
-			}
 			ix = (integer) x;
 		} else if (u <= p3) {
 			// Left tail
 			ix = (integer) (xl + log (v) / lambda_l);
-			if (ix < 0) {
+			if (ix < 0)
 				goto TryAgain;
-			}
 			v *= ((u - p2) * lambda_l);
 		} else {
 			// Right tail
 			ix = (integer) (xr - log (v) / lambda_r);
-			if (ix > (double) n) {
+			if (ix > (double) n)
 				goto TryAgain;
-			}
 			v *= ((u - p3) * lambda_r);
 		}
 
-		/* 
+		/*
 			At this point, the goal is to test whether v <= f(x)/f(m)
 			v <= f(x)/f(m) = (m!(n-m)! / (x!(n-x)!)) * (p/q)^{x-m}
 
@@ -2402,30 +2357,28 @@ TryAgain:
 
 		#else // SQUEEZE METHOD
 
-		/* 
+		/*
 			More efficient determination of whether v < f(x)/f(M)
 		 */
 
-		integer k = labs (ix - m);
+		const integer k = integer_abs (ix - m);
 
 		if (k <= FAR_FROM_MEAN) {
 			/*
 				If ix near m (ie, |ix-m|<FAR_FROM_MEAN), then do
 				explicit evaluation using recursion relation for f(x)
 			*/
-			double g = (n + 1) * s;
+			const double g = (n + 1) * s;
 			double f = 1.0;
 
 			var = v;
 
 			if (m < ix) {
-				for (integer i = m + 1; i <= ix; i ++) {
+				for (integer i = m + 1; i <= ix; i ++)
 					f *= (g / i - s);
-				}
 			} else if (m > ix) {
-				for (integer i = ix + 1; i <= m; i ++) {
+				for (integer i = ix + 1; i <= m; i ++)
 					f /= (g / i - s);
-				}
 			}
 
 			accept = f;
@@ -2440,29 +2393,27 @@ TryAgain:
 					log(f(x)) The squeeze condition was derived
 					under the condition k < npq/2-1
 				*/
-				double amaxp = k / npq * ((k * (k / 3.0 + 0.625) + (1.0 / 6.0)) / npq + 0.5);
-				double ynorm = -(k * k / (2.0 * npq));
-				if (var < ynorm - amaxp) {
+				const double amaxp = k / npq * ((k * (k / 3.0 + 0.625) + (1.0 / 6.0)) / npq + 0.5);
+				const double ynorm = -(k * k / (2.0 * npq));
+				if (var < ynorm - amaxp)
 					goto Finish;
-				}
-				if (var > ynorm + amaxp) {
+				if (var > ynorm + amaxp)
 					goto TryAgain;
-				}
 			}
 
-			/* 
+			/*
 				Now, again: do the test log(v) vs. log f(x)/f(M)
 			*/
 
 			#if USE_EXACT
-			/* 
+			/*
 				This is equivalent to the above, but is a little (~20%) slower
 				There are five log's vs three above, maybe that's it?
 			*/
 
 			accept = LNFACT (m) + LNFACT (n - m) - LNFACT (ix) - LNFACT (n - ix) + (ix - m) * log (p / q);
 
-			#else 
+			#else
 			/* USE STIRLING:
 				The "#define Stirling" above corresponds to the first five
 				terms in asymptotic formula for
@@ -2486,10 +2437,10 @@ TryAgain:
 			*/
 
 			{
-				double x1 = ix + 1.0;
-				double w1 = n - ix + 1.0;
-				double f1 = fm + 1.0;
-				double z1 = n + 1.0 - fm;
+				const double x1 = ix + 1.0;
+				const double w1 = n - ix + 1.0;
+				const double f1 = fm + 1.0;
+				const double z1 = n + 1.0 - fm;
 
 				accept = xm * log (f1 / x1) + (n - m + 0.5) * log (z1 / w1) + (ix - m) * log (w1 * p / (x1 * q))
 					+ Stirling (f1) + Stirling (z1) - Stirling (x1) - Stirling (w1);
@@ -2499,11 +2450,10 @@ TryAgain:
 		}
 
 
-		if (var <= accept) {
+		if (var <= accept)
 			goto Finish;
-		} else {
+		else
 			goto TryAgain;
-		}
 	}
 
 Finish:
@@ -2512,11 +2462,37 @@ Finish:
 }
 
 double NUMrandomBinomial_real (double p, integer n) {
-	if (p < 0.0 || p > 1.0 || n < 0) {
+	if (p < 0.0 || p > 1.0 || n < 0)
 		return undefined;
-	} else {
+	else
 		return (double) NUMrandomBinomial (p, n);
+}
+
+double NUMrandomGamma (const double alpha, const double beta) {
+	Melder_require (alpha > 0 && beta > 0,
+		U"Both arguments should be positive.");
+	double result;
+	if (alpha >= 1.0) {
+		double x, v, d = alpha - 1.0 / 3.0;
+		double c = (1.0 / 3.0) / sqrt (d);
+		while (1) {
+			do {
+				x = NUMrandomGauss (0.0, 1.0);
+				v = 1.0 + c * x;
+			} while (v <= 0.0);
+			v = v * v * v;
+			double u = NUMrandomUniform (0.0, 1.0);
+			if (u < 1.0 - 0.0331 * (x * x) * (x * x))
+				break;
+			if (log(u) < 0.5 * x * x + d * (1.0 - v + log(v)))
+				break;
+		}
+		result = d * v / beta;
+	} else {
+		double u = NUMrandomUniform (0.0, 1.0);
+		result = NUMrandomGamma (alpha + 1.0, beta) * pow (u, 1.0 / alpha);
 	}
+	return result;
 }
 
 void NUMlngamma_complex (double zr, double zi, double *out_lnr, double *out_arg) {
@@ -2526,11 +2502,13 @@ void NUMlngamma_complex (double zr, double zi, double *out_lnr, double *out_arg)
 		ln_re = gsl_lnr.val;
 		ln_arg = gsl_arg.val;
 	}
-	if (out_lnr) *out_lnr = ln_re;
-	if (out_arg) *out_arg = ln_arg;
+	if (out_lnr)
+		*out_lnr = ln_re;
+	if (out_arg)
+		*out_arg = ln_arg;
 }
 
-autoVEC NUMbiharmonic2DSplineInterpolation_getWeights (constVECVU const& x, constVECVU const& y, constVECVU const& z) {
+autoVEC newVECbiharmonic2DSplineInterpolation_getWeights (constVECVU const& x, constVECVU const& y, constVECVU const& z) {
 	Melder_assert (x.size == y.size && x.size == z.size);
 	autoMAT g = newMATraw (x.size, x.size);
 	/*
@@ -2545,7 +2523,7 @@ autoVEC NUMbiharmonic2DSplineInterpolation_getWeights (constVECVU const& x, cons
 		}
 		g [i] [i] = 0.0;
 	}
-	autoVEC w = NUMsolveEquation (g.get(), z, 0.0);
+	autoVEC w = newVECsolve (g.get(), z, 0.0);
 	return w;
 }
 
@@ -2565,20 +2543,19 @@ void NUMfixIndicesInRange (integer lowerLimit, integer upperLimit, integer *lowI
 	if (*highIndex < *lowIndex) {
 		*lowIndex = lowerLimit; *highIndex = upperLimit;
 	} else if (*highIndex == *lowIndex) {
-		Melder_require (*lowIndex >= lowerLimit && *highIndex <= upperLimit, U"Both lower and upper indices are out of range.");
+		Melder_require (*lowIndex >= lowerLimit && *highIndex <= upperLimit,
+			U"Both lower and upper indices are out of range.");
 	} else { // low < high
-		Melder_require (*lowIndex < upperLimit && *highIndex > lowerLimit, U"Both lower and upper indices are out of range.");
-		if (*lowIndex < lowerLimit) {
+		Melder_require (*lowIndex < upperLimit && *highIndex > lowerLimit,
+			U"Both lower and upper indices are out of range.");
+		if (*lowIndex < lowerLimit)
 			*lowIndex = lowerLimit;
-		}
-		if (*highIndex > upperLimit) {
+		if (*highIndex > upperLimit)
 			*highIndex = upperLimit;
-		}
 	}
 }
 
-void NUMgetEntropies (constMAT m, double *out_h, double *out_hx, 
-	double *out_hy,	double *out_hygx, double *out_hxgy, double *out_uygx, double *out_uxgy, double *out_uxy) {
+void NUMgetEntropies (constMATVU const& m, double *out_h, double *out_hx, double *out_hy, double *out_hygx, double *out_hxgy, double *out_uygx, double *out_uxgy, double *out_uxy) {
 	
 	double h = undefined, hx = undefined, hy = undefined;
 	double hxgy = undefined, hygx = undefined, uygx = undefined, uxgy = undefined, uxy = undefined;
@@ -2607,8 +2584,7 @@ void NUMgetEntropies (constMAT m, double *out_h, double *out_hx,
 		
 		longdouble hx_t = 0.0;
 		for (integer j = 1; j <= m.ncol; j ++) {
-			longdouble colsum = 0.0;
-			for (integer i = 1; i <= m.nrow; i++) colsum += m [i] [j];
+			double colsum = NUMsum (m.column (j));
 			if (colsum > 0.0) {
 				longdouble p = colsum / totalSum;
 				hx_t -= p * NUMlog2 (p);
@@ -2633,38 +2609,25 @@ void NUMgetEntropies (constMAT m, double *out_h, double *out_hx,
 		uxgy = (hx - hxgy) / hx;
 		uxy = 2.0 * (hx + hy - h) / (hx + hy);
 	}
-	if (out_h) *out_h = h;
-	if (out_hx) *out_hx = hx;
-	if (out_hy) *out_hy = hy;
+	if (out_h)
+		*out_h = h;
+	if (out_hx)
+		*out_hx = hx;
+	if (out_hy)
+		*out_hy = hy;
 	// Conditional entropies
-	if (out_hygx) *out_hygx = hygx;
-	if (out_hxgy) *out_hxgy = hxgy;
-	if (out_uygx) *out_uygx = uygx;
-	if (out_uxgy) *out_uxgy = uxgy;
-	if (out_uxy) *out_uxy = uxy;
+	if (out_hygx)
+		*out_hygx = hygx;
+	if (out_hxgy)
+		*out_hxgy = hxgy;
+	if (out_uygx)
+		*out_uygx = uygx;
+	if (out_uxgy)
+		*out_uxgy = uxgy;
+	if (out_uxy)
+		*out_uxy = uxy;
 }
 #undef TINY
-
-double NUMfrobeniusnorm (constMAT x) {
-	longdouble scale = 0.0;
-	longdouble ssq = 1.0;
-	for (integer i = 1; i <= x.nrow; i ++) {
-		for (integer j = 1; j <= x.ncol; j ++) {
-			if (x [i] [j] != 0.0) {
-				longdouble absxi = fabs (x [i] [j]);
-				if (scale < absxi) {
-					longdouble t = scale / absxi;
-					ssq = 1.0 + ssq * t * t;
-					scale = absxi;
-				} else {
-					longdouble t = absxi / scale;
-					ssq += t * t;
-				}
-			}
-		}
-	}
-	return scale * sqrt ((double) ssq);
-}
 
 double NUMtrace (const constMATVU& a) {
 	Melder_assert (a.nrow == a.ncol);
@@ -2740,15 +2703,15 @@ void NUMeigencmp22 (double a, double b, double c, double *out_rt1, double *out_r
 	longdouble acs = fabs (cs), cs1, sn1;
 	if (acs > ab) {
 		longdouble ct = -tb / cs;
-		sn1 = 1 / sqrt (1 + ct * ct);
+		sn1 = 1.0 / sqrt (1.0 + ct * ct);
 		cs1 = ct * sn1;
 	} else {
 		if (ab == 0) {
-			cs1 = 1;
-			sn1 = 0;
+			cs1 = 1.0;
+			sn1 = 0.0;
 		} else {
 			tn = -cs / tb;
-			cs1 = 1 / sqrt (1 + tn * tn);
+			cs1 = 1.0 / sqrt (1.0 + tn * tn);
 			sn1 = tn * cs1;
 		}
 	}
@@ -2757,10 +2720,18 @@ void NUMeigencmp22 (double a, double b, double c, double *out_rt1, double *out_r
 		cs1 = -sn1;
 		sn1 = tn;
 	}
-	if (out_rt1) *out_rt1 = (double) rt1;
-	if (out_rt2) *out_rt2 = (double) rt2;
-	if (out_cs1) *out_cs1 = (double) cs1;
-	if (out_sn1) *out_sn1 = (double) sn1;
+	if (fabs (cs1) > 1.0)
+		cs1 = copysign (1.0, cs1);
+	if (fabs (sn1) > 1.0)
+		sn1 = copysign (1.0, sn1);
+	if (out_rt1)
+		*out_rt1 = (double) rt1;
+	if (out_rt2)
+		*out_rt2 = (double) rt2;
+	if (out_cs1)
+		*out_cs1 = (double) cs1;
+	if (out_sn1)
+		*out_sn1 = (double) sn1;
 }
 
 void MATmul3_XYXt (MATVU const& target, constMAT const& x, constMAT const& y) { // X.Y.X'
@@ -2788,6 +2759,149 @@ void MATmul3_XYsXt (MATVU const& target, constMAT const& x, constMAT const& y) {
 	for (integer irow = 1; irow <= target.nrow; irow ++)
 		for (integer icol = irow + 1; icol <= target.ncol; icol ++)
 			target [icol] [irow] = target [irow] [icol];
+}
+
+/*
+	1. Take absolute value of v.
+	2. Sort abs(v) and its index together.
+	3. Make all elements of v zero, except the numberOfNonZeros largest elements.
+	4. Set the support of these largest elements to 1 and the rest to zero.
+*/
+static void VECsetThresholdAndSupport (VECVU const& v, INTVECVU const& support, integer numberOfNonZeros) {
+	Melder_assert (v.size == support.size);
+	Melder_assert (numberOfNonZeros < v.size);
+	autoVEC abs = newVECabs (v);
+	autoINTVEC linear = newINTVEClinear (v.size, 1, 1);
+	NUMsortTogether <double, integer> (abs.get(), linear.get()); // sort is always increasing
+	for (integer i = 1; i <= v.size - numberOfNonZeros; i ++) {
+		v [linear [i]] = 0.0;
+		support [linear [i]] = 0;
+	}
+	for (integer i = v.size - numberOfNonZeros + 1; i <= v.size; i ++)
+		support [linear [i]] = 1;
+}
+
+bool haveEqualSupport (constINTVEC const& a, constINTVEC const& b) {
+	for (integer i = 1; i <= a.size; i ++)
+		if (a [i] != b [i])
+			return false;
+	return true;
+}
+
+static double update (VEC x_new, VEC y_new, INTVEC const& support_new, constVECVU const& xn, double stepSize, constVEC const& gradient, constMATVU const& dictionary, constVEC const& yn, integer numberOfNonZeros, VEC buffer) {
+	Melder_assert (x_new.size == xn.size && buffer.size == x_new.size);
+	Melder_assert (gradient.size == support_new.size && gradient.size == x_new.size);
+	Melder_assert (y_new.size == yn.size);
+	Melder_assert (dictionary.nrow == yn.size && dictionary.ncol == xn.size);
+	
+	buffer <<=  stepSize * gradient;
+	x_new <<= xn + buffer; // x(n) + stepSize * gradient
+	VECsetThresholdAndSupport (x_new, support_new, numberOfNonZeros);
+	buffer <<= x_new  -  xn; // x(n+1) - x (n)
+	double xdifsq = NUMsum2 (buffer); // ||x(n+1) - x (n)||^2
+	
+	VECmul (y_new, dictionary, x_new); // y(n+1) = D. x(n+1)
+	buffer.part (1, yn.size) <<= y_new  -  yn; // y(n+1) - y(n) = D.(x(n+1) - x(n))
+	double ydifsq = NUMsum2 (buffer.part (1, yn.size)); // ||y(n+1) - y(n)||^2
+	return xdifsq / ydifsq;
+}
+
+void newVECsolveSparse_IHT (VECVU const& x, constMATVU const& dictionary, constVECVU const& y, integer numberOfNonZeros, integer maximumNumberOfIterations, double tolerance, bool info) {
+	try {
+		Melder_assert (dictionary.ncol > dictionary.nrow); // must be underdetermined system
+		Melder_assert (dictionary.ncol == x.size); // we calculate D.x
+		Melder_assert (dictionary.nrow == y.size); // y = D.x + e
+		
+		autoVEC gradient = newVECraw (x.size);
+		autoVEC x_new = newVECraw (x.size); // x(n+1), x == x(n)
+		autoVEC yfromx = newVECraw (y.size); // D.x(n)
+		autoVEC yfromx_new = newVECraw (y.size); // D.x(n+1)
+		autoVEC ydif = newVECraw (y.size); // y - D.x(n)
+		autoVEC buffer = newVECraw (x.size);
+		autoINTVEC support = newINTVECraw (x.size);
+		autoINTVEC support_new = newINTVECraw (x.size);
+		
+		double xnormSq = NUMsum2 (x);
+		double rms_y = NUMsum2 (y) / y.size;
+		double rms = rms_y;
+		
+		if (xnormSq == 0.0) {
+			/*
+				Start with x == 0.
+				Get initial support supp (Hard_K (D'y))
+				Hard_K (v) is a hard thresholder which only keeps the largest K elements from the vector v
+			*/
+			VECmul (buffer.get(), dictionary.transpose(), y); // 
+			VECsetThresholdAndSupport (buffer.get(), support.get(), numberOfNonZeros);
+			yfromx <<= 0.0;
+			ydif <<= y;
+		} else {
+			/*
+				We improve a current solution x
+			*/
+			VECsetThresholdAndSupport (x, support.get(), numberOfNonZeros);
+			VECmul (yfromx.get(), dictionary, x); // D.x(n)
+			ydif <<= y  -  yfromx; // y - D.x(n)
+			rms = NUMsum2 (ydif.get()) / y.size; // ||y - D.x(n)||^2
+		}
+		
+		bool convergence = false;
+		integer iter = 1;
+		while (iter <= maximumNumberOfIterations && not convergence) {			
+			
+			VECmul (gradient.get(), dictionary.transpose(), ydif.get()); // D'.(y - D.x(n))
+			/*
+				Calculate stepSize mu according to Eq. (13)
+				mu = || g_sparse ||^2 / || D_sparse * g_sparse ||^2
+				where g_sparse only contains the supported elements from the gradient and D_sparse only the supported columns from the dictionary.
+			*/
+			
+			// 1. the norm of the sparse gradient
+			double normsq_gs = 0.0;
+			for (integer ig = 1; ig <= gradient.size; ig ++) {
+				if (support [ig] != 0)
+					normsq_gs += gradient [ig] * gradient [ig];
+			}
+			// 2. the norm of the transformed sparse gradient
+			double normsq_dgs = 0.0;
+			for (integer icol = 1; icol <= dictionary.ncol; icol ++) {
+				if (support [icol] != 0) {
+					double dgs = NUMsum (dictionary.column (icol)) * gradient [icol];
+					normsq_dgs += dgs * dgs;
+				}	
+			}
+			double stepSize = normsq_gs / normsq_dgs;
+			
+			double normsq_ratio = update (x_new.get(), yfromx_new.get(), support_new.get(), x, stepSize, gradient.get(), dictionary, yfromx.get(), numberOfNonZeros, buffer.get());
+			
+			if (! haveEqualSupport (support.get(), support_new.get())) {
+				double omega;
+				const double kappa = 2.0, c = 0.0;
+				while (stepSize > (omega = (1.0 - c) * normsq_ratio)) { // stepSize > omega, from Eq. 14
+					stepSize *= 1.0 / (kappa * (1.0 - c));
+					normsq_ratio = update (x_new.get(), yfromx_new.get(), support_new.get(), x, stepSize, gradient.get(), dictionary, yfromx.get(), numberOfNonZeros, buffer.get());
+				}
+			}
+
+			ydif <<= y  -  yfromx_new; // y - D.x(n+1)
+
+			double rms_new = NUMsum2 (ydif.get()) / y.size;
+			double relativeError = fabs (rms - rms_new) / rms_y;
+			convergence = relativeError < tolerance;
+			if (info)
+				MelderInfo_writeLine (U"Iteration: ", iter, U", error: ", rms_new, U" relative: ", relativeError, U" stepSize: ", stepSize);
+			
+			x <<= x_new;
+			support <<= support_new;
+			yfromx <<= yfromx_new;
+			rms = rms_new;
+			iter ++;
+		}
+		if (info)
+			MelderInfo_drain();
+	} catch (MelderError) {
+		Melder_throw (U"Solution of sparse problem not found.");
+	}
 }
 
 /* End of file NUM2.cpp */

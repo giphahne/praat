@@ -1,6 +1,6 @@
 /* ManPages.cpp
  *
- * Copyright (C) 1996-2018 Paul Boersma
+ * Copyright (C) 1996-2019 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,10 +27,10 @@ Thing_implement (ManPages, Daata, 0);
 #define LONGEST_FILE_NAME  55
 
 static bool isAllowedFileNameCharacter (char32 c) {
-	return isalnum ((int) c) || c == U'_' || c == U'-' || c == U'+';
+	return Melder_isWordCharacter (c) || c == U'_' || c == U'-' || c == U'+';
 }
 static bool isSingleWordCharacter (char32 c) {
-	return isalnum ((int) c) || c == U'_';
+	return Melder_isWordCharacter (c) || c == U'_';
 }
 
 static integer lookUp_unsorted (ManPages me, conststring32 title);
@@ -43,8 +43,7 @@ void structManPages :: v_destroy () noexcept {
 		for (integer ipage = 1; ipage <= our pages.size; ipage ++) {
 			ManPage page = our pages.at [ipage];
 			if (page -> paragraphs) {
-				ManPage_Paragraph par;
-				for (par = page -> paragraphs; (int) par -> type != 0; par ++)
+				for (ManPage_Paragraph par = page -> paragraphs; (int) par -> type != 0; par ++)
 					Melder_free (par -> text);   // not an autostring32, because it can be a string literal (if not dynamic)
 				NUMvector_free <struct structManPage_Paragraph> (page -> paragraphs, 0);
 			}
@@ -254,10 +253,14 @@ static int pageCompare (const void *first, const void *second) {
 	const char32 *p = & my title [0], *q = & thy title [0];
 	for (;;) {
 		const char32 plower = Melder_toLowerCase (*p), qlower = Melder_toLowerCase (*q);
-		if (plower < qlower) return -1;
-		if (plower > qlower) return 1;
-		if (plower == U'\0') return str32cmp (my title.get(), thy title.get());
-		p ++, q ++;
+		if (plower < qlower)
+			return -1;
+		if (plower > qlower)
+			return 1;
+		if (plower == U'\0')
+			return str32cmp (my title.get(), thy title.get());
+		p ++;
+		q ++;
 	}
 	return 0;   // should not occur
 }
@@ -287,18 +290,20 @@ static integer lookUp_unsorted (ManPages me, conststring32 title) {
 
 static integer lookUp_sorted (ManPages me, conststring32 title) {
 	static autoManPage dummy;
-	ManPage *page;
-	if (! dummy) dummy = Thing_new (ManPage);
+	if (! dummy)
+		dummy = Thing_new (ManPage);
 	dummy -> title = Melder_dup (title);
-	page = (ManPage *) bsearch (& dummy, & my pages.at [1], integer_to_uinteger (my pages.size), sizeof (ManPage), pageCompare);   // noexcept
-	if (page) return (page - & my pages.at [1]) + 1;
+	ManPage *page = (ManPage *) bsearch (& dummy, & my pages.at [1], integer_to_uinteger (my pages.size), sizeof (ManPage), pageCompare);   // noexcept
+	if (page)
+		return (page - & my pages.at [1]) + 1;
 	if (Melder_isLowerCaseLetter (title [0]) || Melder_isUpperCaseLetter (title [0])) {
 		char32 caseSwitchedTitle [300];
 		Melder_sprint (caseSwitchedTitle,300, title);
 		caseSwitchedTitle [0] = Melder_isLowerCaseLetter (title [0]) ? Melder_toUpperCase (caseSwitchedTitle [0]) : Melder_toLowerCase (caseSwitchedTitle [0]);
 		dummy -> title = Melder_dup (caseSwitchedTitle);
 		page = (ManPage *) bsearch (& dummy, & my pages.at [1], integer_to_uinteger (my pages.size), sizeof (ManPage), pageCompare);   // noexcept
-		if (page) return (page - & my pages.at [1]) + 1;
+		if (page)
+			return (page - & my pages.at [1]) + 1;
 	}
 	return 0;
 }
@@ -343,7 +348,10 @@ static void grind (ManPages me) {
 	 * Some optimization required: use only two mallocs.
 	 * Forget nlinksHither and nlinksThither.
 	 */
-	if (grandNlinks == 0) { my ground = true; return; }
+	if (grandNlinks == 0) {
+		my ground = true;
+		return;
+	}
 	if (! (grandLinksHither = NUMvector <integer> (1, grandNlinks)) || ! (grandLinksThither = NUMvector <integer> (1, grandNlinks))) {
 		Melder_flushError ();
 		return;
@@ -399,28 +407,36 @@ integer ManPages_uniqueLinksHither (ManPages me, integer ipage) {
 	integer result = page -> nlinksHither;
 	for (integer ilinkHither = 1; ilinkHither <= page -> nlinksHither; ilinkHither ++) {
 		integer link = page -> linksHither [ilinkHither];
-		for (integer ilinkThither = 1; ilinkThither <= page -> nlinksThither; ilinkThither ++)
-			if (page -> linksThither [ilinkThither] == link) { result --; break; }
+		for (integer ilinkThither = 1; ilinkThither <= page -> nlinksThither; ilinkThither ++) {
+			if (page -> linksThither [ilinkThither] == link) {
+				result --;
+				break;
+			}
+		}
 	}
 	return result;
 }
 
 integer ManPages_lookUp (ManPages me, conststring32 title) {
-	if (! my ground) grind (me);
+	if (! my ground)
+		grind (me);
 	return lookUp_sorted (me, title);
 }
 
 static integer ManPages_lookUp_caseSensitive (ManPages me, conststring32 title) {
-	if (! my ground) grind (me);
+	if (! my ground)
+		grind (me);
 	for (integer i = 1; i <= my pages.size; i ++) {
 		ManPage page = my pages.at [i];
-		if (str32equ (page -> title.get(), title)) return i;
+		if (str32equ (page -> title.get(), title))
+			return i;
 	}
 	return 0;
 }
 
 conststring32vector ManPages_getTitles (ManPages me) {
-	if (! my ground) grind (me);
+	if (! my ground)
+		grind (me);
 	if (! my titles) {
 		my titles = autostring32vector (my pages.size);
 		for (integer i = 1; i <= my pages.size; i ++) {
@@ -469,7 +485,6 @@ static void writeParagraphsAsHtml (ManPages me, MelderFile file, ManPage_Paragra
 	bool wordItalic = false, wordBold = false, wordCode = false, letterSuper = false;
 	for (ManPage_Paragraph paragraph = paragraphs; (int) paragraph -> type != 0; paragraph ++) {
 		const char32 *p = & paragraph -> text [0];
-		bool inTable, inPromptedTable;
 		bool isListItem = paragraph -> type == kManPage_type::LIST_ITEM ||
 			(paragraph -> type >= kManPage_type::LIST_ITEM1 && paragraph -> type <= kManPage_type::LIST_ITEM3);
 		bool isTag = paragraph -> type == kManPage_type::TAG ||
@@ -526,7 +541,7 @@ static void writeParagraphsAsHtml (ManPages me, MelderFile file, ManPage_Paragra
 				theCurrentPraatPicture -> font = (int) kGraphics_font::TIMES;
 				theCurrentPraatPicture -> fontSize = 12.0;
 				theCurrentPraatPicture -> lineType = Graphics_DRAWN;
-				theCurrentPraatPicture -> colour = Graphics_BLACK;
+				theCurrentPraatPicture -> colour = Melder_BLACK;
 				theCurrentPraatPicture -> lineWidth = 1.0;
 				theCurrentPraatPicture -> arrowSize = 1.0;
 				theCurrentPraatPicture -> speckleSize = 1.0;
@@ -591,12 +606,11 @@ static void writeParagraphsAsHtml (ManPages me, MelderFile file, ManPage_Paragra
 			}
 			MelderString_append (buffer, stylesInfo [(int) paragraph -> type]. htmlIn, U"\n");
 		}
-		inTable = !! str32chr (p, U'\t');
+		bool inTable = !! str32chr (p, U'\t'), inPromptedTable = false;
 		if (inTable) {
 			if (*p == U'\t') {
 				MelderString_append (buffer, U"<table border=0 cellpadding=0 cellspacing=0><tr><td width=100 align=middle>");
 				p ++;
-				inPromptedTable = false;
 			} else {
 				MelderString_append (buffer, U"<table border=0 cellpadding=0 cellspacing=0><tr><td width=100 align=left>");
 				inPromptedTable = true;

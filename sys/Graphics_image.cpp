@@ -1,6 +1,6 @@
 /* Graphics_image.cpp
  *
- * Copyright (C) 1992-2012,2013,2014,2015,2016,2017 Paul Boersma
+ * Copyright (C) 1992-2019 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@
 #define wdy(y)  ((y) * my scaleY + my deltaY)
 
 static void _GraphicsScreen_cellArrayOrImage (GraphicsScreen me,
-	constMATVU const& z_float, constmatrixview <double_rgbt> const& z_rgbt, constmatrixview <unsigned char> const& z_byte,
+	constMATVU const& z_float, constmatrixview <MelderColour> const& z_rgbt, constmatrixview <unsigned char> const& z_byte,
 	integer ix1, integer ix2, integer x1DC, integer x2DC,
 	integer iy1, integer iy2, integer y1DC, integer y2DC,
 	double minimum, double maximum,
@@ -297,7 +297,7 @@ static void _GraphicsScreen_cellArrayOrImage (GraphicsScreen me,
 							PUT_PIXEL
 						}
 					} else if (! NUMisEmpty (z_rgbt)) {
-						constvectorview <double_rgbt> ztop = z_rgbt [itop], zbottom = z_rgbt [ibottom];
+						constvectorview <MelderColour> ztop = z_rgbt [itop], zbottom = z_rgbt [ibottom];
 						for (xDC = clipx1; xDC < clipx2; xDC += undersampling) {
 							double red =
 								rightWeight [xDC] * (topWeight * ztop [iright [xDC]]. red + bottomWeight * zbottom [iright [xDC]]. red) +
@@ -449,7 +449,7 @@ static void _GraphicsScreen_cellArrayOrImage (GraphicsScreen me,
 
 static void _GraphicsPostscript_cellArrayOrImage (GraphicsPostscript me,
 	constMATVU const& z_float,
-	constmatrixview <double_rgbt> const& z_rgbt,
+	constmatrixview <MelderColour> const& z_rgbt,
 	constmatrixview <unsigned char> const& z_byte,
 	integer ix1, integer ix2, integer x1DC, integer x2DC,
 	integer iy1, integer iy2, integer y1DC, integer y2DC,
@@ -633,7 +633,7 @@ static void _GraphicsPostscript_cellArrayOrImage (GraphicsPostscript me,
 }
 
 static void _cellArrayOrImage (Graphics me,
-	constMATVU const& z_float, constmatrixview <double_rgbt> const& z_rgbt, constmatrixview <unsigned char> const& z_byte,
+	constMATVU const& z_float, constmatrixview <MelderColour> const& z_rgbt, constmatrixview <unsigned char> const& z_byte,
 	integer ix1, integer ix2, integer x1DC, integer x2DC,
 	integer iy1, integer iy2, integer y1DC, integer y2DC, double minimum, double maximum,
 	integer clipx1, integer clipx2, integer clipy1, integer clipy2, bool interpolate)
@@ -652,7 +652,7 @@ void Graphics_cellArray (Graphics me, constMATVU const& z,
 	double x1WC, double x2WC, double y1WC, double y2WC, double minimum, double maximum)
 {
 	if (z.nrow < 1 || z.ncol < 1 || minimum == maximum) return;
-	_cellArrayOrImage (me, z, constmatrixview<double_rgbt>(), constmatrixview<unsigned char>(),
+	_cellArrayOrImage (me, z, constmatrixview<MelderColour>(), constmatrixview<unsigned char>(),
 		1, z.ncol, wdx (x1WC), wdx (x2WC), 1, z.nrow, wdy (y1WC), wdy (y2WC), minimum, maximum,
 		wdx (my d_x1WC), wdx (my d_x2WC), wdy (my d_y1WC), wdy (my d_y2WC), false);
 	if (my recording) {
@@ -666,7 +666,7 @@ void Graphics_cellArray (Graphics me, constMATVU const& z,
 	}
 }
 
-void Graphics_cellArray_colour (Graphics me, constmatrixview<double_rgbt> const& z,
+void Graphics_cellArray_colour (Graphics me, constmatrixview <MelderColour> const& z,
 	double x1WC, double x2WC, double y1WC, double y2WC, double minimum, double maximum)
 {
 	if (z.nrow < 1 || z.ncol < 1 || minimum == maximum) return;
@@ -679,7 +679,7 @@ void Graphics_cellArray_colour (Graphics me, constmatrixview<double_rgbt> const&
 		put (minimum); put (maximum);
 		put (z.nrow); put (z.ncol);
 		for (integer irow = 1; irow <= z.nrow; irow ++) {
-			constvectorview <double_rgbt> row = z [irow];
+			constvectorview <MelderColour> row = z [irow];
 			for (integer icol = 1; icol <= z.ncol; icol ++) {
 				put (row [icol]. red);
 				put (row [icol]. green);
@@ -694,7 +694,7 @@ void Graphics_cellArray8 (Graphics me, constmatrixview<unsigned char> const& z,
 	double x1WC, double x2WC, double y1WC, double y2WC, unsigned char minimum, unsigned char maximum)
 {
 	if (z.nrow < 1 || z.ncol < 1 || minimum == maximum) return;
-	_cellArrayOrImage (me, constMATVU(), constmatrixview<double_rgbt>(), z,
+	_cellArrayOrImage (me, constMATVU(), constmatrixview<MelderColour>(), z,
 		1, z.ncol, wdx (x1WC), wdx (x2WC), 1, z.nrow, wdy (y1WC), wdy (y2WC), minimum, maximum,
 		wdx (my d_x1WC), wdx (my d_x2WC), wdy (my d_y1WC), wdy (my d_y2WC), false);
 	if (my recording) {
@@ -712,7 +712,7 @@ void Graphics_image (Graphics me, constMATVU const& z,
 	double x1WC, double x2WC, double y1WC, double y2WC, double minimum, double maximum)
 {
 	if (z.nrow < 1 || z.ncol < 1 || minimum == maximum) return;
-	_cellArrayOrImage (me, z, constmatrixview<double_rgbt>(), constmatrixview<unsigned char>(),
+	_cellArrayOrImage (me, z, constmatrixview<MelderColour>(), constmatrixview<unsigned char>(),
 		1, z.ncol, wdx (x1WC), wdx (x2WC), 1, z.nrow, wdy (y1WC), wdy (y2WC), minimum, maximum,
 		wdx (my d_x1WC), wdx (my d_x2WC), wdy (my d_y1WC), wdy (my d_y2WC), true);
 	if (my recording) {
@@ -726,7 +726,7 @@ void Graphics_image (Graphics me, constMATVU const& z,
 	}
 }
 
-void Graphics_image_colour (Graphics me, constmatrixview<double_rgbt> const& z,
+void Graphics_image_colour (Graphics me, constmatrixview <MelderColour> const& z,
 	double x1WC, double x2WC, double y1WC, double y2WC, double minimum, double maximum)
 {
 	if (z.nrow < 1 || z.ncol < 1 || minimum == maximum) return;
@@ -739,7 +739,7 @@ void Graphics_image_colour (Graphics me, constmatrixview<double_rgbt> const& z,
 		put (minimum); put (maximum);
 		put (z.nrow); put (z.ncol);
 		for (integer irow = 1; irow <= z.nrow; irow ++) {
-			constvectorview <double_rgbt> row = z [irow];
+			constvectorview <MelderColour> row = z [irow];
 			for (integer icol = 1; icol <= z.ncol; icol ++) {
 				put (row [icol]. red);
 				put (row [icol]. green);
@@ -750,11 +750,11 @@ void Graphics_image_colour (Graphics me, constmatrixview<double_rgbt> const& z,
 	}
 }
 
-void Graphics_image8 (Graphics me, constmatrixview<unsigned char> const& z,
+void Graphics_image8 (Graphics me, constmatrixview <unsigned char> const& z,
 	double x1WC, double x2WC, double y1WC, double y2WC, uint8 minimum, uint8 maximum)
 {
 	if (z.nrow < 1 || z.ncol < 1 || minimum == maximum) return;
-	_cellArrayOrImage (me, constMATVU(), constmatrixview<double_rgbt>(), z,
+	_cellArrayOrImage (me, constMATVU(), constmatrixview<MelderColour>(), z,
 		1, z.ncol, wdx (x1WC), wdx (x2WC), 1, z.nrow, wdy (y1WC), wdy (y2WC), minimum, maximum,
 		wdx (my d_x1WC), wdx (my d_x2WC), wdy (my d_y1WC), wdy (my d_y2WC), true);
 	if (my recording) {
@@ -786,7 +786,7 @@ static void _GraphicsScreen_imageFromFile (GraphicsScreen me, conststring32 rela
 				height = width * (double) photo -> ny / (double) photo -> nx;
 				y2DC -= height / 2, y1DC = y2DC + height;
 			}
-			automatrix <double_rgbt> z = newmatrixraw <double_rgbt> (photo -> ny, photo -> nx);
+			automatrix <MelderColour> z = newmatrixraw <MelderColour> (photo -> ny, photo -> nx);
 			for (integer iy = 1; iy <= photo -> ny; iy ++) {
 				for (integer ix = 1; ix <= photo -> nx; ix ++) {
 					z [iy] [ix]. red          = photo -> d_red          -> z [iy] [ix];
@@ -808,7 +808,7 @@ static void _GraphicsScreen_imageFromFile (GraphicsScreen me, conststring32 rela
 		if (my d_useGdiplus) {
 			structMelderFile file { };
 			Melder_relativePathToFile (relativeFileName, & file);
-			Gdiplus::Bitmap image (Melder_peek32toW (file. path));
+			Gdiplus::Bitmap image (Melder_peek32toW_fileSystem (file. path));
 			if (x1 == x2 && y1 == y2) {
 				width = image. GetWidth (), x1DC -= width / 2, x2DC = x1DC + width;
 				height = image. GetHeight (), y2DC -= height / 2, y1DC = y2DC + height;
@@ -827,9 +827,7 @@ static void _GraphicsScreen_imageFromFile (GraphicsScreen me, conststring32 rela
 	#elif quartz
 		structMelderFile file { };
 		Melder_relativePathToFile (relativeFileName, & file);
-		char utf8 [500];
-		Melder_str32To8bitFileRepresentation_inplace (file. path, utf8);
-		CFStringRef path = CFStringCreateWithCString (nullptr, utf8, kCFStringEncodingUTF8);
+		CFStringRef path = CFStringCreateWithCString (nullptr, Melder_peek32to8_fileSystem (file. path), kCFStringEncodingUTF8);
 		CFURLRef url = CFURLCreateWithFileSystemPath (nullptr, path, kCFURLPOSIXPathStyle, false);
 		CFRelease (path);
 		CGImageSourceRef imageSource = CGImageSourceCreateWithURL (url, nullptr);

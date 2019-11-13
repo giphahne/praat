@@ -1,6 +1,6 @@
 /* Polynomial.cpp
  *
- * Copyright (C) 1993-2018 David Weenink
+ * Copyright (C) 1993-2019 David Weenink
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
  djmw 20030619 Added SVD_compute before SVD_solve
  djmw 20060510 Polynomial_to_Roots: changed behaviour. All roots found are now saved.
  	In previous version a nullptr pointer was returned. New error messages.
- djmw 20071012 Added: o_CAN_WRITE_AS_ENCODING.h
+ djmw 20071012 Added: oo_CAN_WRITE_AS_ENCODING.h
  djmw 20071201 Melder_warning<n>
  djmw 20080122 float -> double
   djmw 20110304 Thing_new
@@ -461,7 +461,7 @@ static void Graphics_polyline_clipTopBottom (Graphics g, VEC x, VEC y, double ym
 	}
 }
 
-void FunctionTerms_draw (FunctionTerms me, Graphics g, double xmin, double xmax, double ymin, double ymax, int extrapolate, int garnish) {
+void FunctionTerms_draw (FunctionTerms me, Graphics g, double xmin, double xmax, double ymin, double ymax, int extrapolate, bool garnish) {
 	integer numberOfPoints = 1000;
 
 	autoVEC x = newVECraw (numberOfPoints);
@@ -506,7 +506,7 @@ void FunctionTerms_draw (FunctionTerms me, Graphics g, double xmin, double xmax,
 	}
 }
 
-void FunctionTerms_drawBasisFunction (FunctionTerms me, Graphics g, integer index, double xmin, double xmax, double ymin, double ymax, int extrapolate, int garnish) {
+void FunctionTerms_drawBasisFunction (FunctionTerms me, Graphics g, integer index, double xmin, double xmax, double ymin, double ymax, int extrapolate, bool garnish) {
 	if (index < 1 || index > my numberOfCoefficients)
 		return;
 	autoFunctionTerms thee = Data_copy (me);
@@ -1715,7 +1715,7 @@ void Spline_init (Spline me, double xmin, double xmax, integer degree, integer n
 	my knots [numberOfKnots] = xmax;
 }
 
-void Spline_drawKnots (Spline me, Graphics g, double xmin, double xmax, double ymin, double ymax, int garnish) {
+void Spline_drawKnots (Spline me, Graphics g, double xmin, double xmax, double ymin, double ymax, bool garnish) {
 	integer order = Spline_getOrder (me);
 
 	if (xmax <= xmin) {

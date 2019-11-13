@@ -1,6 +1,6 @@
 /* FFNet.cpp
  *
- * Copyright (C) 1997-2018 David Weenink
+ * Copyright (C) 1997-2019 David Weenink
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -261,8 +261,8 @@ double FFNet_getBias (FFNet me, integer layer, integer unit) {
 		integer bias_unit = my wLast [node];
 		return my w [bias_unit];
 	} catch (MelderError) {
-		return undefined;
 		Melder_clearError ();
+		return undefined;
 	}
 }
 
@@ -547,7 +547,7 @@ void FFNet_drawTopology (FFNet me, Graphics g) {
 				x2WC += dx2;
 			}
 		}
-		Graphics_setColour (g, Graphics_RED);
+		Graphics_setColour (g, Melder_RED);
 		x2WC = x2;
 		for (integer j = 1; j <= numberOfUnitsInLayer; j ++) {
 			Graphics_circle (g, x2WC, y2WC, radius);
@@ -555,7 +555,7 @@ void FFNet_drawTopology (FFNet me, Graphics g) {
 				Graphics_fillCircle (g, x2WC, y2WC, radius);
 			x2WC += dx2;
 		}
-		Graphics_setColour (g, Graphics_BLACK);
+		Graphics_setColour (g, Melder_BLACK);
 		if (i > 0) {
 			integer numberOfUnitsInLayer_m1 = ( i == 1 ? my numberOfInputs : my numberOfUnitsInLayer [i - 1] );
 			double dx1 = dx;
@@ -595,7 +595,7 @@ void FFNet_drawTopology (FFNet me, Graphics g) {
 void FFNet_drawActivation (FFNet me, Graphics g) {
 	integer node = 1, maxNumOfUnits = my numberOfInputs;
 	int dxIsFixed = 1;
-	Graphics_Colour colour = Graphics_inqColour (g);
+	MelderColour colour = Graphics_inqColour (g);
 	double dy = 1.0 / (my numberOfLayers + 1);
 
 	Graphics_setInner (g);
@@ -618,7 +618,7 @@ void FFNet_drawActivation (FFNet me, Graphics g) {
 		for (integer j = 1; j <= numberOfUnitsInLayer; j ++, node ++) {
 			double activity = my activity [node];
 			double radius = r1 * (fabs (activity) < 0.05 ? 0.05 : fabs (activity));
-			/*Graphics_setColour (g, activity < 0 ? Graphics_BLACK : Graphics_RED);*/
+			/*Graphics_setColour (g, activity < 0 ? Melder_BLACK : Melder_RED);*/
 			Graphics_circle (g, x2WC, y2WC, radius);
 			if (activity < 0)
 				Graphics_fillCircle (g, x2WC, y2WC, radius);
@@ -630,7 +630,7 @@ void FFNet_drawActivation (FFNet me, Graphics g) {
 }
 
 /* This routine is deprecated since praat-4.2.4 20040422 and will be removed in the future. */
-void FFNet_drawWeightsToLayer (FFNet me, Graphics g, int layer, int scaling, int garnish) {
+void FFNet_drawWeightsToLayer (FFNet me, Graphics g, int layer, int scaling, bool garnish) {
 	Melder_require (layer > 0 && layer <= my numberOfLayers, U"Layer number should be between 1 and ", my numberOfLayers, U".");
 	
 	autoMatrix weights = FFNet_weightsToMatrix (me, layer, false);
@@ -653,12 +653,12 @@ void FFNet_drawWeightsToLayer (FFNet me, Graphics g, int layer, int scaling, int
 	}
 }
 
-void FFNet_drawWeights (FFNet me, Graphics g, integer layer, int garnish) {
+void FFNet_drawWeights (FFNet me, Graphics g, integer layer, bool garnish) {
 	autoTableOfReal thee = FFNet_extractWeights (me, layer);
 	TableOfReal_drawAsSquares (thee.get(), g, 1, thy numberOfRows, 1, thy numberOfColumns, garnish);
 }
 
-void FFNet_drawCostHistory (FFNet me, Graphics g, integer iFrom, integer iTo, double costMin, double costMax, int garnish) {
+void FFNet_drawCostHistory (FFNet me, Graphics g, integer iFrom, integer iTo, double costMin, double costMax, bool garnish) {
 	if (my minimizer)
 		Minimizer_drawHistory (my minimizer.get(), g, iFrom, iTo, costMin, costMax, 0);
 

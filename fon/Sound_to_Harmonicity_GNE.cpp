@@ -105,7 +105,7 @@ autoMatrix Sound_to_Harmonicity_GNE (Sound me,
 			 */
 			autoSound band = Spectrum_to_Sound (bandSpectrum.get());
 			/*if (graphics) {
-				Graphics_beginMovieFrame (graphics, & Graphics_WHITE);
+				Graphics_beginMovieFrame (graphics, & Melder_WHITE);
 				Spectrum_draw (bandSpectrum, graphics, 0, 5000, 0, 0, true);
 				Graphics_endMovieFrame (graphics, 0.0);
 			}*/
@@ -148,7 +148,7 @@ autoMatrix Sound_to_Harmonicity_GNE (Sound me,
 		 */	
 		for (integer row = 2; row <= nenvelopes; row ++) {
 			for (integer col = 1; col <= row - 1; col ++) {
-				if (labs (row - col) < bandwidth / 2.0 / step) {
+				if (integer_abs (row - col) < bandwidth / 2.0 / step) {
 					cc -> z [row] [col] = 0.0;
 				}
 			}

@@ -18,11 +18,13 @@
  * along with this work. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "TableOfReal_extensions.h"
-#include "PCA.h"
 #include "CCA.h"
+#include "PCA.h"
+#include "TableOfReal_extensions.h"
 
 #include "SSCP_def.h"
+
+#include "SSCP_enums.h"
 
 Thing_define (Covariance, SSCP) {
 };
@@ -43,7 +45,7 @@ Collection_define (CovarianceList, OrderedOf, Covariance) {
 	}
 };
 
-void SSCP_init (SSCP me, integer dimension, integer storage);
+void SSCP_init (SSCP me, integer dimension, kSSCPstorage storage);
 
 autoSSCP SSCP_create (integer dimension);
 
@@ -54,7 +56,7 @@ void SSCP_drawTwoDimensionalEllipse_inside (SSCP me, Graphics g, double scale, c
 double SSCP_getEllipseScalefactor (SSCP me, double scale, bool confidence);
 
 void SSCP_drawConcentrationEllipse (SSCP me, Graphics g, double scale, int confidence,
-	integer d1, integer d2, double xmin, double xmax, double ymin, double ymax, int garnish);
+	integer d1, integer d2, double xmin, double xmax, double ymin, double ymax, bool garnish);
 
 void SSCP_setNumberOfObservations (SSCP me, double numberOfObservations);
 
@@ -92,6 +94,7 @@ autoTableOfReal Covariance_TableOfReal_mahalanobis (Covariance me, TableOfReal t
 	Calculate the Mahalanobis distance: sqrt ((x-m)'S**-1 (x-m))
 	use the m-vector (centroid) from the covariance unless useTableColumnMeans is true.
 */
+autoTableOfReal Covariance_TableOfReal_scaledResiduals (Covariance me, TableOfReal thee, bool useTableCentroid);
 
 autoCovariance TableOfReal_to_Covariance (TableOfReal me);
 
@@ -133,14 +136,11 @@ autoCovariance Covariance_create (integer dimension);
 
 autoCovariance Covariance_createSimple (conststring32 covars, conststring32 centroid, integer numberOfObservations);
 
-autoCovariance Covariance_create_reduceStorage (integer dimension, integer storage);
+autoCovariance Covariance_create_reduceStorage (integer dimension, kSSCPstorage storage);
 /*
-	storage 0 or >= dimension: complete matrix
-	storage 1: only diagonal
-	storage 2: diagonal + 1 off-diagonal [i,i+1]
-	storage 3: diagonal + off-diagonal [i,i+1] + off-diagonal [i,i+2]
-    ....
-    storage dimension : complete matrix
+	storage full: complete matrix
+	storage diagonal: only diagonal
+	
     See also SSCP_expand () for usage.
 */
 
@@ -208,6 +208,17 @@ void Covariances_equality (CovarianceList me, int method, double *out_prob, doub
 	method = 2 : Wald (Schott, 2001)
 */
 
+double Covariance_TableOfReal_normalityTest_BHEP (Covariance me, TableOfReal data, constVEC const& responsibilities, double *inout_beta, double *out_tnb, double *out_lnmu, double *out_lnvar, bool *out_covarianceIsSingular);
+/*
+	Multivariate normality test of nxp data matrix according to the method described in 
+		Henze & Wagner (1997), A new approach to the BHEP tests for multivariate normality, 
+		Journal of Multivariate Analysis 62, 1-23.
+	The test statistic is returned in tnb, together with the lognormal mean 'lnmu' and the lognormal variance 'lnvar'.
+*/
+
+
+
+
 autoCovariance CovarianceList_to_Covariance_pool (CovarianceList me);
 autoCovariance CovarianceList_to_Covariance_between (CovarianceList me);
 autoCovariance CovarianceList_to_Covariance_within (CovarianceList me);
@@ -242,7 +253,7 @@ void SSCP_expand (SSCP me);
 	Before using one of the Covariance functions defined here on a reduced matrix we
 	first have to expand it to normal size.
 
-	Covariance me = Covariance_create_reduceStorage (dimension, 1); // diagonal only
+	Covariance me = Covariance_create_reduceStorage (dimension, kSSCPstorage::Diagonal); // diagonal only
 	...
 	SSCP_expand (me);
 	PCA thee = SSCP_to_PCA (me);

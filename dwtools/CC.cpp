@@ -78,13 +78,15 @@ void CC_init (CC me, double tmin, double tmax, integer nt, double dt, double t1,
 	my fmax = fmax;
 	my maximumNumberOfCoefficients = maximumNumberOfCoefficients;
 	Sampled_init (me, tmin, tmax, nt, dt, t1);
-	my frame = NUMvector<structCC_Frame> (1, nt);
+	my frame = newvectorzero <structCC_Frame> (nt);
 }
 
 autoMatrix CC_to_Matrix (CC me) {
 	try {
-		// find number of coefficients by quering all frames.
-		// We cannot use maximumNumberOfCoefficiennts because this number is only used to calculate the inverse
+		/*
+			Find number of coefficients by quering all frames.
+			We cannot use maximumNumberOfCoefficients because this number is only used to calculate the inverse
+		*/
 		integer numberOfCoefficients = 0;
 		for (integer i = 1; i <= my nx; i ++) {
 			CC_Frame cf = & my frame [i];
@@ -95,7 +97,7 @@ autoMatrix CC_to_Matrix (CC me) {
 		
 		for (integer i = 1; i <= my nx; i ++) {
 			CC_Frame cf = & my frame [i];
-			thy z.column (i) <<= cf -> c.get(); // not coefficients must equal zero!
+			thy z.column (i).part (1, cf -> numberOfCoefficients) <<= cf -> c.get().part (1, cf -> numberOfCoefficients);
 		}
 		return thee;
 	} catch (MelderError) {
@@ -103,7 +105,7 @@ autoMatrix CC_to_Matrix (CC me) {
 	}
 }
 
-void CC_paint (CC me, Graphics g, double xmin, double xmax, integer cmin, integer cmax, double minimum, double maximum, int garnish) {
+void CC_paint (CC me, Graphics g, double xmin, double xmax, integer cmin, integer cmax, double minimum, double maximum, bool garnish) {
 	autoMatrix thee = CC_to_Matrix (me);
 
 	Matrix_paintCells (thee.get(), g, xmin, xmax, cmin, cmax, minimum, maximum);
@@ -116,7 +118,7 @@ void CC_paint (CC me, Graphics g, double xmin, double xmax, integer cmin, intege
 	}
 }
 
-void CC_drawC0 (CC me, Graphics g, double xmin, double xmax, double ymin, double ymax, int garnish) {
+void CC_drawC0 (CC me, Graphics g, double xmin, double xmax, double ymin, double ymax, bool garnish) {
 	(void) garnish;
 
 	if (xmin >= xmax) {
@@ -147,70 +149,75 @@ void CC_drawC0 (CC me, Graphics g, double xmin, double xmax, double ymin, double
 	Graphics_unsetInner (g);
 }
 
-void CC_getNumberOfCoefficients_extrema (CC me, integer startframe, integer endframe, integer *out_min, integer *out_max) {
+void CC_getNumberOfCoefficients_extrema (CC me, integer startFrame, integer endFrame, integer *out_min, integer *out_max) {
 
-	Melder_assert (startframe <= endframe);
+	Melder_assert (startFrame <= endFrame);
 
-	if (startframe == 0 && endframe == 0) {
-		startframe = 1; 
-		endframe = my nx;
+	if (startFrame == 0 && endFrame == 0) {
+		startFrame = 1;
+		endFrame = my nx;
 	}
-	if (startframe < 1) startframe = 1;
-	if (endframe > my nx) endframe = my nx;
+	if (startFrame < 1)
+		startFrame = 1;
+	if (endFrame > my nx)
+		endFrame = my nx;
 
 	integer min = my maximumNumberOfCoefficients;
 	integer max = 0;
 
-	for (integer i = startframe; i <= endframe; i ++) {
+	for (integer i = startFrame; i <= endFrame; i ++) {
 		CC_Frame f = & my frame [i];
 		integer nc = f -> numberOfCoefficients;
-
-		if (nc < min) min = nc;
-		else if (nc > max) max = nc;
+		if (nc < min)
+			min = nc;
+		else if (nc > max)
+			max = nc;
 	}
-	if (out_min) *out_min = min;
-	if (out_max) *out_max = max;
+	if (out_min)
+		*out_min = min;
+	if (out_max)
+		*out_max = max;
 }
 
-integer CC_getMinimumNumberOfCoefficients (CC me, integer startframe, integer endframe) {
+integer CC_getMinimumNumberOfCoefficients (CC me, integer startFrame, integer endFrame) {
 	integer min, max;
-	CC_getNumberOfCoefficients_extrema (me, startframe, endframe, & min, & max);
+	CC_getNumberOfCoefficients_extrema (me, startFrame, endFrame, & min, & max);
 	return min;
 }
 
-integer CC_getMaximumNumberOfCoefficients (CC me, integer startframe, integer endframe) {
+integer CC_getMaximumNumberOfCoefficients (CC me, integer startFrame, integer endFrame) {
 	integer min, max;
-	CC_getNumberOfCoefficients_extrema (me, startframe, endframe, & min, & max);
+	CC_getNumberOfCoefficients_extrema (me, startFrame, endFrame, & min, & max);
 	return max;
 }
 
-integer CC_getNumberOfCoefficients (CC me, integer iframe) {
-	if (iframe < 1 || iframe > my nx)
+integer CC_getNumberOfCoefficients (CC me, integer frameNumber) {
+	if (frameNumber < 1 || frameNumber > my nx)
 		return 0;
-	CC_Frame cf = & me -> frame[iframe];
+	CC_Frame cf = & me -> frame [frameNumber];
 	return cf -> numberOfCoefficients;
 }
 
 
-double CC_getValueInFrame (CC me, integer iframe, integer index) {
-	if (iframe < 1 || iframe > my nx)
+double CC_getValueInFrame (CC me, integer frameNumber, integer coeffNumber) {
+	if (frameNumber < 1 || frameNumber > my nx)
 		return undefined;
-	CC_Frame cf = & me -> frame [iframe];
-	return ( index > cf -> numberOfCoefficients ? undefined : cf -> c [index] );
+	CC_Frame cf = & me -> frame [frameNumber];
+	return ( coeffNumber > cf -> numberOfCoefficients ? undefined : cf -> c [coeffNumber] );
 }
 
-double CC_getValue (CC me, double t, integer index) {
-	integer iframe = Sampled_xToNearestIndex (me, t);
-	if (iframe < 1 || iframe > my nx)
+double CC_getValue (CC me, double t, integer coeffNumber) {
+	integer frameNumber = Sampled_xToNearestIndex (me, t);
+	if (frameNumber < 1 || frameNumber > my nx)
 		return undefined;
-	CC_Frame cf = & me -> frame [iframe];
-	return ( index > cf -> numberOfCoefficients ? undefined : cf -> c [index] );
+	CC_Frame cf = & me -> frame [frameNumber];
+	return ( coeffNumber > cf -> numberOfCoefficients ? undefined : cf -> c [coeffNumber] );
 }
 
-double CC_getC0ValueInFrame (CC me, integer iframe) {
-	if (iframe < 1 || iframe > my nx)
+double CC_getC0ValueInFrame (CC me, integer frameNumber) {
+	if (frameNumber < 1 || frameNumber > my nx)
 		return undefined;
-	CC_Frame cf = & me -> frame [iframe];
+	CC_Frame cf = & me -> frame [frameNumber];
 	return cf -> c0;
 }
 

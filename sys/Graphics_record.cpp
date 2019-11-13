@@ -216,24 +216,24 @@ void Graphics_play (Graphics me, Graphics thee) {
 			} break;
 			case SET_STANDARD_COLOUR: {   // only used in old Praat picture files
 				int standardColour = (int) get;
-				Graphics_Colour colour =
-					standardColour == 0 ? Graphics_BLACK :
-					standardColour == 1 ? Graphics_WHITE :
-					standardColour == 2 ? Graphics_RED :
-					standardColour == 3 ? Graphics_GREEN :
-					standardColour == 4 ? Graphics_BLUE :
-					standardColour == 5 ? Graphics_CYAN :
-					standardColour == 6 ? Graphics_MAGENTA :
-					standardColour == 7 ? Graphics_YELLOW :
-					standardColour == 8 ? Graphics_MAROON :
-					standardColour == 9 ? Graphics_LIME :
-					standardColour == 10 ? Graphics_NAVY :
-					standardColour == 11 ? Graphics_TEAL :
-					standardColour == 12 ? Graphics_PURPLE :
-					standardColour == 13 ? Graphics_OLIVE :
-					standardColour == 14 ? Graphics_PINK :
-					standardColour == 15 ? Graphics_SILVER :
-					Graphics_GREY;
+				MelderColour colour =
+					standardColour == 0 ? Melder_BLACK :
+					standardColour == 1 ? Melder_WHITE :
+					standardColour == 2 ? Melder_RED :
+					standardColour == 3 ? Melder_GREEN :
+					standardColour == 4 ? Melder_BLUE :
+					standardColour == 5 ? Melder_CYAN :
+					standardColour == 6 ? Melder_MAGENTA :
+					standardColour == 7 ? Melder_YELLOW :
+					standardColour == 8 ? Melder_MAROON :
+					standardColour == 9 ? Melder_LIME :
+					standardColour == 10 ? Melder_NAVY :
+					standardColour == 11 ? Melder_TEAL :
+					standardColour == 12 ? Melder_PURPLE :
+					standardColour == 13 ? Melder_OLIVE :
+					standardColour == 14 ? Melder_PINK :
+					standardColour == 15 ? Melder_SILVER :
+					Melder_GREY;
 				Graphics_setColour (thee, colour);
 			} break;
 			case SET_GREY: {
@@ -274,7 +274,7 @@ void Graphics_play (Graphics me, Graphics thee) {
 			} break;
 #if motif
 			case XOR_ON: {
-				Graphics_Colour colour; colour. red = get, colour. green = get, colour. blue = get;
+				MelderColour colour; colour. red = get, colour. green = get, colour. blue = get;
 				Graphics_xorOn (thee, colour);
 			} break;
 			case XOR_OFF: {
@@ -372,7 +372,7 @@ void Graphics_play (Graphics me, Graphics thee) {
 				Graphics_doubleArrow (thee, x1, y1, x2, y2);
 			}  break;
 			case SET_RGB_COLOUR: {
-				Graphics_Colour colour;
+				MelderColour colour;
 				colour. red = get, colour. green = get, colour. blue = get;
 				Graphics_setColour (thee, colour);
 			} break;
@@ -390,7 +390,7 @@ void Graphics_play (Graphics me, Graphics thee) {
 			case CELL_ARRAY_COLOUR: {
 				double x1 = get, x2 = get, y1 = get, y2 = get, minimum = get, maximum = get;
 				integer nrow = iget, ncol = iget;
-				automatrix <double_rgbt> z = newmatrixzero <double_rgbt> (nrow, ncol);
+				automatrix <MelderColour> z = newmatrixzero <MelderColour> (nrow, ncol);
 				for (integer irow = 1; irow <= nrow; irow ++)
 					for (integer icol = 1; icol <= ncol; icol ++) {
 						z [irow] [icol]. red = get;
@@ -403,7 +403,7 @@ void Graphics_play (Graphics me, Graphics thee) {
 			case IMAGE_COLOUR: {
 				double x1 = get, x2 = get, y1 = get, y2 = get, minimum = get, maximum = get;
 				integer nrow = iget, ncol = iget;
-				automatrix <double_rgbt> z = newmatrixzero <double_rgbt> (nrow, ncol);
+				automatrix <MelderColour> z = newmatrixzero <MelderColour> (nrow, ncol);
 				for (integer irow = 1; irow <= nrow; irow ++)
 					for (integer icol = 1; icol <= ncol; icol ++) {
 						z [irow] [icol]. red = get;

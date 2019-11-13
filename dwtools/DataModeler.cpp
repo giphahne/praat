@@ -1,6 +1,6 @@
 /* DataModeler.cpp
  *
- * Copyright (C) 2014-2018 David Weenink, 2017 Paul Boersma
+ * Copyright (C) 2014-2019 David Weenink, 2017 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -959,7 +959,7 @@ void DataModeler_reportChiSquared (DataModeler me, int weighDataType) {
 double DataModeler_estimateSigmaY (DataModeler me) {
 	try {
 		integer numberOfDataPoints = 0;
-		autoVEC y (my numberOfDataPoints, kTensorInitializationType::RAW);
+		autoVEC y = newVECraw (my numberOfDataPoints);
 		for (integer i = 1; i <= my numberOfDataPoints; i ++) {
 			if (my dataPointStatus [i] != DataModeler_DATA_INVALID)
 				y [++ numberOfDataPoints] = my y [i];
@@ -1563,10 +1563,13 @@ autoFormantModeler Formant_to_FormantModeler (Formant me, double tmin, double tm
 {
 	try {
 		integer ifmin, ifmax, posInCollection = 0;
-		if (tmax <= tmin)
-			tmin = my xmin, tmax = my xmax;
+		if (tmax <= tmin) {
+			tmin = my xmin;
+			tmax = my xmax;
+		}
 		integer numberOfDataPoints = Sampled_getWindowSamples (me, tmin, tmax, & ifmin, & ifmax);
-		Melder_require (numberOfDataPoints >= numberOfParametersPerTrack, U"There are not enought data points, please extend the selection.");
+		Melder_require (numberOfDataPoints >= numberOfParametersPerTrack,
+			U"There are not enough data points, please extend the selection.");
 		
 		autoFormantModeler thee = FormantModeler_create (tmin, tmax, numberOfFormants, numberOfDataPoints, numberOfParametersPerTrack);
 		for (integer iformant = 1; iformant <= numberOfFormants; iformant ++) {
@@ -1574,15 +1577,15 @@ autoFormantModeler Formant_to_FormantModeler (Formant me, double tmin, double tm
 			DataModeler ffi = thy trackmodelers.at [posInCollection];
 			integer idata = 0, validData = 0;
 			for (integer iframe = ifmin; iframe <= ifmax; iframe ++) {
-				Formant_Frame curFrame = & my d_frames [iframe];
+				Formant_Frame curFrame = & my frames [iframe];
 				ffi -> x [++ idata] = Sampled_indexToX (me, iframe);
 				ffi -> dataPointStatus [idata] = DataModeler_DATA_INVALID;
 				if (iformant <= curFrame -> nFormants) {
-					double frequency = curFrame -> formant [iformant]. frequency;
+					const double frequency = curFrame -> formant [iformant]. frequency;
 					if (isdefined (frequency)) {
-						double bw = curFrame -> formant [iformant]. bandwidth;
+						const double bandwidth = curFrame -> formant [iformant]. bandwidth;
 						ffi -> y [idata] = curFrame -> formant [iformant]. frequency;
-						ffi -> sigmaY [idata] = bw;
+						ffi -> sigmaY [idata] = bandwidth;
 						ffi -> dataPointStatus [idata] = DataModeler_DATA_VALID;
 						validData ++;
 					}
@@ -1618,9 +1621,9 @@ autoFormant FormantModeler_to_Formant (FormantModeler me, int useEstimates, int 
 				sigma [iformant] = FormantModeler_getStandardDeviation (me, iformant);
 		}
 		for (integer iframe = 1; iframe <= numberOfFrames; iframe ++) {
-			Formant_Frame thyFrame = & thy d_frames [iframe];
+			Formant_Frame thyFrame = & thy frames [iframe];
 			thyFrame -> intensity = 1.0; //???
-			thyFrame -> formant = NUMvector <structFormant_Formant> (1, numberOfFormants);
+			thyFrame -> formant = newvectorzero <structFormant_Formant> (numberOfFormants);
 			
 			for (integer iformant = 1; iformant <= numberOfFormants; iformant ++) {
 				DataModeler ffi = my trackmodelers.at [iformant];
@@ -1917,11 +1920,11 @@ autoFormant Formant_extractPart (Formant me, double tmin, double tmax) {
 			U"Your start and end time should be between ", my xmin, U" and ", my xmax, U".");
 		integer thyindex = 1, ifmin, ifmax;
 		integer numberOfFrames = Sampled_getWindowSamples (me, tmin, tmax, & ifmin, & ifmax);
-		double t1 = Sampled_indexToX (me, ifmin);
+		const double t1 = Sampled_indexToX (me, ifmin);
 		autoFormant thee = Formant_create (tmin, tmax, numberOfFrames, my dx, t1, my maxnFormants);
-		for (integer iframe = ifmin; iframe <= ifmax; iframe++, thyindex++) {
-			Formant_Frame myFrame = & my d_frames [iframe];
-			Formant_Frame thyFrame = & thy d_frames [thyindex];
+		for (integer iframe = ifmin; iframe <= ifmax; iframe ++, thyindex ++) {
+			const Formant_Frame myFrame = & my frames [iframe];
+			const Formant_Frame thyFrame = & thy frames [thyindex];
 			myFrame -> copy (thyFrame);
 		}
 		return thee;
@@ -1964,10 +1967,12 @@ Thing_implement (PitchModeler, DataModeler, 0);
 
 autoPitchModeler Pitch_to_PitchModeler (Pitch me, double tmin, double tmax, integer numberOfParameters) {
 	try {
-		if (tmax <= tmin)
-			tmin = my xmin, tmax = my xmax;
+		if (tmax <= tmin) {
+			tmin = my xmin;
+			tmax = my xmax;
+		}
 		integer ifmin, ifmax;
-		integer numberOfDataPoints = Sampled_getWindowSamples (me, tmin, tmax, & ifmin, & ifmax);
+		const integer numberOfDataPoints = Sampled_getWindowSamples (me, tmin, tmax, & ifmin, & ifmax);
 		Melder_require (numberOfParameters <= numberOfDataPoints,
 			U"The number of parameters should not exceed the number of data points. Please, extend the selection.");
 		autoPitchModeler thee = Thing_new (PitchModeler);
@@ -1977,7 +1982,7 @@ autoPitchModeler Pitch_to_PitchModeler (Pitch me, double tmin, double tmax, inte
 			thy x [++ idata] = Sampled_indexToX (me, iframe);
 			thy dataPointStatus [idata] = DataModeler_DATA_INVALID;
 			if (Pitch_isVoiced_i (me, iframe)) {
-				thy y [idata] = my frame [iframe]. candidate [1]. frequency;
+				thy y [idata] = my frames [iframe]. candidates [1]. frequency;
 				thy dataPointStatus [idata] = DataModeler_DATA_VALID;
 				validData ++;
 			}

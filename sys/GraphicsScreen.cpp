@@ -145,7 +145,8 @@ void structGraphicsScreen :: v_destroy () noexcept {
 			Gdiplus::GetImageEncoders (numberOfImageEncoders, sizeOfImageEncoderArray, imageEncoderInfos);
 			for (int iencoder = 0; iencoder < numberOfImageEncoders; iencoder ++) {
 				if (! wcscmp (imageEncoderInfos [iencoder]. MimeType, L"image/png")) {
-					gdiplusBitmap. Save (Melder_peek32toW (our d_file. path), & imageEncoderInfos [iencoder]. Clsid, nullptr);
+					gdiplusBitmap. Save (Melder_peek32toW_fileSystem (our d_file. path),
+							& imageEncoderInfos [iencoder]. Clsid, nullptr);
 				}
 			}
 
@@ -400,7 +401,7 @@ void Graphics_updateWs (Graphics me) {
 		my v_updateWs ();
 }
 
-void Graphics_beginMovieFrame (Graphics any, Graphics_Colour *p_colour) {
+void Graphics_beginMovieFrame (Graphics any, MelderColour *p_colour) {
 	if (any -> classInfo == classGraphicsScreen) {
 		GraphicsScreen me = (GraphicsScreen) any;
 		Graphics_clearRecording (me);
@@ -410,7 +411,7 @@ void Graphics_beginMovieFrame (Graphics any, Graphics_Colour *p_colour) {
 			Graphics_setColour (me, *p_colour);
 			Graphics_setWindow (me, 0.0, 1.0, 0.0, 1.0);
 			Graphics_fillRectangle (me, 0.0, 1.0, 0.0, 1.0);
-			Graphics_setColour (me, Graphics_BLACK);
+			Graphics_setColour (me, Melder_BLACK);
 		}
 	}
 }

@@ -40,7 +40,7 @@ void Matrix_scatterPlot (Matrix me, Graphics g, integer icx, integer icy,
 	double xmin, double xmax, double ymin, double ymax,
 	double size_mm, conststring32 mark, bool garnish)
 {
-	integer ix = labs (icx), iy = labs (icy);
+	integer ix = integer_abs (icx), iy = integer_abs (icy);
 
 	if (ix < 1 || ix > my nx || iy < 1 || iy > my nx) {
 		return;
@@ -123,7 +123,7 @@ void Matrix_drawAsSquares_inside (Matrix me, Graphics g, double xmin, double xma
 	
 	double extremum = fabs (NUMextremum (my z.get()));
 
-	Graphics_Colour colour = Graphics_inqColour (g);
+	MelderColour colour = Graphics_inqColour (g);
 	double scaleFactor = sqrt (cellAreaScaleFactor);
 	for (integer i = 1; i <= numberOfCells; i++) {
 		integer index = Permutation_getValueAtIndex (p.get(), i);
@@ -154,7 +154,7 @@ void Matrix_drawAsSquares_inside (Matrix me, Graphics g, double xmin, double xma
 		cellTop = std::min (cellTop, ymax);
 		cellBottom = std::max (cellBottom, ymin);
 		if (z > 0.0) {
-			Graphics_setColour (g, Graphics_WHITE);
+			Graphics_setColour (g, Melder_WHITE);
 		}
 		Graphics_fillRectangle (g, cellRight, cellLeft, cellBottom, cellTop);
 		Graphics_setColour (g, colour);
@@ -162,7 +162,7 @@ void Matrix_drawAsSquares_inside (Matrix me, Graphics g, double xmin, double xma
 	}
 }
 
-void Matrix_drawAsSquares (Matrix me, Graphics g, double xmin, double xmax, double ymin, double ymax, int garnish) {
+void Matrix_drawAsSquares (Matrix me, Graphics g, double xmin, double xmax, double ymin, double ymax, bool garnish) {
 	if (xmax <= xmin) {
 		xmin = my xmin;
 		xmax = my xmax;
@@ -381,7 +381,7 @@ autoMatrix Matrix_solveEquation (Matrix me, double tolerance) {
 			b [i] = my z [i] [my nx];
 		}
 
-		autoVEC x = NUMsolveEquation (u.get(), b.get(), tolerance);
+		autoVEC x = newVECsolve (u.get(), b.get(), tolerance);
 		for (integer j = 1; j <= nc; j ++) {
 			thy z [1] [j] = x [j];
 		}
@@ -393,7 +393,8 @@ autoMatrix Matrix_solveEquation (Matrix me, double tolerance) {
 
 autoMatrix Matrix_solveEquation (Matrix me, Matrix thee, double tolerance) {
 	try {
-		Melder_require (my ny == thy ny, U"The number of rows must be equal.");
+		Melder_require (my ny == thy ny,
+			U"The number of rows must be equal.");
 		
 		if (my ny < my nx) {
 			Melder_warning (U"Solution is not unique (there are fewer equations than unknowns).");

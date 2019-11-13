@@ -78,6 +78,7 @@
 #include "EditDistanceTable.h"
 #include "Editor.h"
 #include "EditDistanceTable.h"
+#include "Electroglottogram.h"
 #include "Eigen_and_Matrix.h"
 #include "Eigen_and_Procrustes.h"
 #include "Eigen_and_SSCP.h"
@@ -299,7 +300,7 @@ DO
 }
 
 FORM (GRAPHICS_BarkFilter_paint, U"FilterBank: Paint", nullptr) {
-	praat_TimeFunction_RANGE(fromTime,toTime)
+	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (fromFrequency, U"left Frequency range (bark)", U"0.0")
 	REAL (toFrequency, U"right Frequency range (bark)", U"0.0")
 	REAL (fromAmplitude, U"left Amplitude range", U"0.0")
@@ -457,7 +458,7 @@ DO
 }
 
 FORM (GRAPHICS_CC_drawC0, U"CC: Draw c0", U"CC: Draw c0...") {
-	praat_TimeFunction_RANGE(fromTime,toTime)
+	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (fromAmplitude, U"left Amplitude range", U"0.0")
 	REAL (toAmplitude, U"right Amplitude range", U"0.0")
 	BOOLEAN (garnish, U"Garnish", true)
@@ -2332,6 +2333,77 @@ DIRECT (NEW1_Eigen_Covariance_project) {
 	CONVERT_TWO_END (my name.get(), U"_", your name.get())
 }
 
+/******************** Electroglottogram ********************************************/
+
+FORM (NEW_Electroglottogram_highPassFilter, U"Electroglottogram: High-pass filter", U"Electroglottogram: High-pass filter...") {
+	REAL (fromFrequency, U"From frequency (Hz)", U"100.0")
+	POSITIVE (smoothing, U"Smoothing (Hz)", U"100.0")
+	OK
+DO
+	CONVERT_EACH (Electroglottogram)
+		autoElectroglottogram result = Electroglottogram_highPassFilter (me, fromFrequency, smoothing);
+	CONVERT_EACH_END (my name.get(), U"_filtered")
+}
+
+FORM (NEW_Electroglottogram_getClosedGlottisIntervals, U"Electroglottogram: To IntervalTier", U"") {
+	POSITIVE (pitchFloor, U"Pitch floor (Hz)", U"75.0")
+	POSITIVE (pitchCeiling, U"Pitch ceiling (Hz)", U"500.0")
+	POSITIVE (closingThreshold, U"Closing threshold", U"0.30")
+	POSITIVE (peakThresholdFraction, U"Peak threshold (0-1)", U"0.05")
+	OK
+DO
+	Melder_require (closingThreshold < 1.0,
+		U"The closing threshold should be smaller than 1.");
+	CONVERT_EACH (Electroglottogram)
+		autoIntervalTier result = Electroglottogram_getClosedGlottisIntervals (me, pitchFloor, pitchCeiling, closingThreshold, peakThresholdFraction);
+	CONVERT_EACH_END (my name.get())
+}
+
+FORM (NEW_Electroglottogram_to_AmplitudeTier_levels, U"Electroglottogram: To AmplitudeTier (levels)", U"") {
+	POSITIVE (pitchFloor, U"Pitch floor (Hz)", U"75.0")
+	POSITIVE (pitchCeiling, U"Pitch ceiling (Hz)", U"500.0")
+	POSITIVE (closingThreshold, U"Closing threshold", U"0.30")
+	BOOLEAN (wantPeaks, U"Peaks", 0)
+	BOOLEAN (wantValleys, U"Valleys", 0)
+	OK
+DO
+	CONVERT_EACH (Electroglottogram)
+		autoAmplitudeTier peaks, valleys;
+		autoAmplitudeTier result = Electroglottogram_to_AmplitudeTier_levels (me, pitchFloor, pitchCeiling, closingThreshold, & peaks, & valleys);
+		if (wantPeaks)
+			praat_new (peaks.move(), my name.get(), U"_peaks");
+		if (wantValleys)
+			praat_new (valleys.move(), my name.get(), U"_valleys");
+	CONVERT_EACH_END (my name.get())
+
+}
+
+FORM (NEW_Electroglottogram_derivative, U"Electroglottogram: Derivative", U"Electroglottogram: Derivative...") {
+	POSITIVE (lowPassFrequency, U"Low-pass frequency (Hz)", U"5000.0")
+	POSITIVE (smoothing, U"Smoothing (Hz)", U"100.0")
+	BOOLEAN (peak99, U"Scale absolute peak at 0.99", 1)
+	OK
+DO
+	CONVERT_EACH (Electroglottogram)
+		autoSound result = Electroglottogram_derivative (me, lowPassFrequency, smoothing, peak99);
+	CONVERT_EACH_END (my name.get(), U"_derivative")
+}
+
+FORM (NEW_Electroglottogram_firstCentralDifference, U"Electroglottogram: First central difference", U"Electroglottogram: First central difference...") {
+	BOOLEAN (peak99, U"Scale absolute peak at 0.99", 1)
+	OK
+DO
+	CONVERT_EACH (Electroglottogram)
+		autoSound result = Electroglottogram_firstCentralDifference (me, peak99);
+	CONVERT_EACH_END (my name.get(), U"_cdiff")
+}
+
+DIRECT (NEW_Electroglottogram_to_Sound) {
+	CONVERT_EACH (Electroglottogram)
+		autoSound result = Electroglottogram_to_Sound (me);
+	CONVERT_EACH_END (my name.get())
+}
+
 /******************** Index ********************************************/
 
 DIRECT (HELP_Index_help) {
@@ -2394,7 +2466,7 @@ FORM (NEW_Index_extractPart, U"Index: Extract part", U"Index: Extract part...") 
 	INTEGER (toItem, U"right Item range", U"0")
 	OK
 DO
-	CONVERT_EACH (Index);
+	CONVERT_EACH (Index)
 		autoIndex result = Index_extractPart (me, fromItem, toItem);
 	CONVERT_EACH_END (my name.get(), U"_part")
 }
@@ -2403,7 +2475,7 @@ FORM (NEW_Index_to_Permutation, U"Index: To Permutation", U"Index: To Permutatio
 	BOOLEAN (permuteWithinClasses, U"Permute within classes", true)
 	OK
 DO
-	CONVERT_EACH (Index);
+	CONVERT_EACH (Index)
 		autoPermutation result = Index_to_Permutation_permuteRandomly (me, permuteWithinClasses);
 	CONVERT_EACH_END (my name.get())
 }
@@ -2645,7 +2717,7 @@ DIRECT (NEW_FileInMemorySet_to_Strings_id) {
 /************************* FilterBank ***********************************/
 
 FORM (GRAPHICS_FilterBank_drawFilters, U"FilterBank: Draw filters", nullptr) {
-	praat_TimeFunction_RANGE(fromTime,toTime)
+	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (fromFrequency, U"left Frequency range", U"0.0")
 	REAL (toFrequency, U"right Frequency range", U"0.0")
 	REAL (fromAmplitude, U"left Amplitude range", U"0.0")
@@ -2658,7 +2730,7 @@ DO
 }
 
 FORM (GRAPHICS_FilterBank_drawOneContour, U"FilterBank: Draw one contour", nullptr) {
-	praat_TimeFunction_RANGE(fromTime,toTime)
+	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (fromFrequency, U"left Frequency range", U"0.0")
 	REAL (toFrequency, U"right Frequency range", U"0.0")
 	REAL (height, U"Height (dB)", U"40.0")
@@ -2670,7 +2742,7 @@ DO
 }
 
 FORM (GRAPHICS_FilterBank_drawContours, U"FilterBank: Draw contours", nullptr) {
-	praat_TimeFunction_RANGE(fromTime,toTime)
+	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (fromFrequency, U"left Frequency range", U"0.0")
 	REAL (toFrequency, U"right Frequency range", U"0.0")
 	REAL (fromAmplitude, U"left Amplitude range", U"0.0")
@@ -2704,7 +2776,7 @@ DO
 }
 
 FORM (GRAPHICS_MelSpectrogram_paintImage, U"MelSpectrogram: Paint image", U"MelSpectrogram: Paint image...") {
-	praat_TimeFunction_RANGE(fromTime,toTime)
+	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (fromFrequency, U"left Frequency range (mel)", U"0.0")
 	REAL (toFrequency, U"right Frequency range (mel)", U"0.0")
 	REAL (fromAmplitude, U"left Amplitude range (dB)", U"0.0")
@@ -2718,7 +2790,7 @@ DO
 }
 
 FORM (GRAPHICS_BarkSpectrogram_paintImage, U"BarkSpectrogram: Paint image", U"BarkSpectrogram: Paint image...") {
-	praat_TimeFunction_RANGE(fromTime,toTime)
+	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (fromFrequency, U"left Frequency range (bark)", U"0.0")
 	REAL (toFrequency, U"right Frequency range (bark)", U"0.0")
 	REAL (fromAmplitude, U"left Amplitude range (dB)", U"0.0")
@@ -2732,7 +2804,7 @@ DO
 }
 
 FORM (GRAPHICS_FilterBank_paintImage, U"FilterBank: Paint image", nullptr) {
-	praat_TimeFunction_RANGE(fromTime,toTime)
+	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (fromFrequency, U"left Frequency range", U"0.0")
 	REAL (toFrequency, U"right Frequency range", U"0.0")
 	REAL (fromAmplitude, U"left Amplitude range", U"0.0")
@@ -2745,7 +2817,7 @@ DO
 }
 
 FORM (GRAPHICS_FilterBank_paintContours, U"FilterBank: Paint contours", nullptr) {
-	praat_TimeFunction_RANGE(fromTime,toTime)
+	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (fromFrequency, U"left Frequency range", U"0.0")
 	REAL (toFrequency, U"right Frequency range", U"0.0")
 	REAL (fromAmplitude, U"left Amplitude range", U"0.0")
@@ -2759,7 +2831,7 @@ DO
 
 
 FORM (GRAPHICS_FilterBank_paintCells, U"FilterBank: Paint cells", nullptr) {
-	praat_TimeFunction_RANGE(fromTime,toTime)
+	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (fromFrequency, U"left Frequency range", U"0.0")
 	REAL (toFrequency, U"right Frequency range", U"0.0")
 	REAL (fromAmplitude, U"left Amplitude range", U"0.0")
@@ -2772,7 +2844,7 @@ DO
 }
 
 FORM (GRAPHICS_FilterBank_paintSurface, U"FilterBank: Paint surface", nullptr) {
-	praat_TimeFunction_RANGE(fromTime,toTime)
+	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (fromFrequency, U"left Frequency range", U"0.0")
 	REAL (toFrequency, U"right Frequency range", U"0.0")
 	REAL (fromAmplitude, U"left Amplitude range", U"0.0")
@@ -2960,7 +3032,7 @@ DO
 /****************** FormantGrid  *********************************/
 
 FORM (GRAPHICS_old_FormantGrid_draw, U"FormantGrid: Draw", nullptr) {
-	praat_TimeFunction_RANGE(fromTime,toTime)
+	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (fromFrequency, U"left Frequency range (Hz)", U"0.0")
 	REAL (toFrequency, U"right Frequency range (Hz)", U"0.0 (= auto)")
 	BOOLEAN (bandwidths, U"Bandwidths", false)
@@ -2973,7 +3045,7 @@ DO
 }
 
 FORM (GRAPHICS_FormantGrid_draw, U"FormantGrid: Draw", nullptr) {
-	praat_TimeFunction_RANGE(fromTime,toTime)
+	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (fromFrequency, U"left Frequency range (Hz)", U"0.0")
 	REAL (toFrequency, U"right Frequency range (Hz)", U"0.0 (= auto)")
 	BOOLEAN (bandwidths, U"Bandwidths", false)
@@ -3269,7 +3341,7 @@ FORM (INFO_Table_reportRobustStatistics, U"Table: Report robust statistics", U"T
 	OK
 DO
 	INFO_ONE (Table)
-		integer columnNumber = Table_getColumnIndexFromColumnLabel (me, columnLabel);
+		const integer columnNumber = Table_getColumnIndexFromColumnLabel (me, columnLabel);
 		double location, scale;
 		Table_reportHuberMStatistics (me, columnNumber, k_stdev, tolerance, & location, & scale, maximumNumberOfiterations);
 		MelderInfo_open ();
@@ -3288,15 +3360,17 @@ static void print_means (Table me) {
 		return;
 	}
 	MelderInfo_writeLine (
-		Melder_padOrTruncate (15, my columnHeaders[1]. label.get()), U"\t",
-		Melder_padOrTruncate (15, my columnHeaders[2]. label.get()), U"\t",
-		Melder_padOrTruncate (15, my columnHeaders[3]. label.get()));
+		Melder_padOrTruncate (15, my columnHeaders [1]. label.get()), U"\t",
+		Melder_padOrTruncate (15, my columnHeaders [2]. label.get()), U"\t",
+		Melder_padOrTruncate (15, my columnHeaders [3]. label.get())
+	);
 	for (integer irow = 1; irow <= my rows.size; irow ++) {
 		TableRow row = my rows.at [irow];
 		MelderInfo_writeLine (
-			Melder_padOrTruncate (15, row -> cells[1]. string.get()), U"\t",
-			Melder_padOrTruncate (15, Melder_double (row -> cells[2]. number)), U"\t",
-			Melder_padOrTruncate (15, Melder_double (row -> cells[3]. number)));
+			Melder_padOrTruncate (15, row -> cells [1]. string.get()), U"\t",
+			Melder_padOrTruncate (15, Melder_double (row -> cells [2]. number)), U"\t",
+			Melder_padOrTruncate (15, Melder_double (row -> cells [3]. number))
+		);
 	}
 }
 
@@ -3696,9 +3770,30 @@ DO
 	CONVERT_EACH_END (my name.get(), U"_als")
 }
 
+FORM (NEW_Matrix_to_NMF_is, U"Matrix: To NMF (IS)", U"Matrix: To NMF (IS)...") {
+	NATURAL (numberOfFeatures, U"Number of features", U"2")
+	INTEGER (maximumNumberOfIterations, U"Maximum number of iterations", U"20")
+	REAL (tolx, U"Change tolerance", U"1e-9")
+	REAL (told, U"Approximation tolerance", U"1e-9")
+	OPTIONMENU_ENUM (kNMF_Initialization, initializationMethod, U"Initialisation method", kNMF_Initialization::RandomUniform)
+	BOOLEAN (info, U"Info", 0)
+	OK
+DO
+	Melder_require (maximumNumberOfIterations >= 0, U"The maximum number of iterations should not e negative.");
+	CONVERT_EACH (Matrix)
+		autoNMF result = Matrix_to_NMF_is (me, numberOfFeatures, maximumNumberOfIterations, tolx, told, initializationMethod, info);
+	CONVERT_EACH_END (my name.get(), U"_als")
+}
+
 DIRECT (REAL_NMF_Matrix_getEuclideanDistance) {
 	NUMBER_TWO (NMF, Matrix)
 		double result = NMF_getEuclideanDistance (me, your z.get());
+	NUMBER_TWO_END (U" (= ", result / (your ny * your nx), U" * nrow * ncol)")
+}
+
+DIRECT (REAL_NMF_Matrix_getItakuraSaitoDivergence) {
+	NUMBER_TWO (NMF, Matrix)
+		double result = NMF_getItakuraSaitoDivergence (me, your z.get());
 	NUMBER_TWO_END (U" (= ", result / (your ny * your nx), U" * nrow * ncol)")
 }
 
@@ -3723,6 +3818,18 @@ FORM (MODIFY_NMF_Matrix_improveFactorization_als, U"NMF & Matrix: Improve factor
 DO
 	MODIFY_FIRST_OF_TWO (NMF, Matrix)
 		NMF_improveFactorization_als (me, your z.get(), maximumNumberOfIterations, tolx, told, info);
+	MODIFY_FIRST_OF_TWO_END
+}
+
+FORM (MODIFY_NMF_Matrix_improveFactorization_is, U"NMF & Matrix: Improve factorization (IS)", nullptr) {
+	NATURAL (maximumNumberOfIterations, U"Maximum number of iterations", U"10")
+	REAL (tolx, U"Change tolerance", U"1e-9")
+	REAL (told, U"Approximation tolerance", U"1e-9")
+	BOOLEAN (info, U"Info", 0)
+	OK
+DO
+	MODIFY_FIRST_OF_TWO (NMF, Matrix)
+		NMF_improveFactorization_is (me, your z.get(), maximumNumberOfIterations, tolx, told, info);
 	MODIFY_FIRST_OF_TWO_END
 }
 
@@ -3980,7 +4087,7 @@ DO
 }
 
 FORM (GRAPHICS_MelFilter_paint, U"FilterBank: Paint", nullptr) {
-	praat_TimeFunction_RANGE(fromTime,toTime)
+	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (fromFrequency, U"left Frequency range (mel)", U"0.0")
 	REAL (toFrequency, U"right Frequency range (mel)", U"0.0")
 	REAL (fromAmplitude, U"left Amplitude range", U"0.0")
@@ -4014,7 +4121,7 @@ DO
 /**************** Ltas *******************************************/
 
 #include "../kar/UnicodeData.h"
-FORM (INFO_Ltas_reportSpectralTilt, U"Ltas: Report spectral tilt", nullptr) {
+FORM (INFO_Ltas_reportSpectralTrend, U"Ltas: Report spectral trend", nullptr) {
 	POSITIVE (fromFrequency, U"left Frequency range (Hz)", U"100.0")
 	POSITIVE (toFrequency, U"right Frequency range (Hz)", U"5000.0")
 	OPTIONMENU (frequencyScale, U"Frequency scale", 1)
@@ -4028,7 +4135,7 @@ DO
 	bool logScale = frequencyScale == 2;
 	INFO_ONE (Ltas)
 		double a, b;
-		Ltas_fitTiltLine (me, fromFrequency, toFrequency, logScale, fitMethod, &a, &b);
+		Ltas_fitTrendLine (me, fromFrequency, toFrequency, logScale, fitMethod, &a, &b);
 		MelderInfo_open ();
 			MelderInfo_writeLine (U"Spectral model: amplitude_dB(frequency_Hz) " UNITEXT_ALMOST_EQUAL_TO " ", logScale ? U"offset + slope * log (frequency_Hz)" : U"offset + slope * frequency_Hz");
 			MelderInfo_writeLine (U"Slope: ", a, logScale ? U" dB/decade" : U" dB/Hz");
@@ -4142,6 +4249,38 @@ DIRECT (HELP_MSpline_help) {
 DIRECT (HELP_NMF_help) {
 	HELP (U"NMF")
 }
+
+FORM (GRAPHICS_NMF_paintFeatures, U"NMF: Paint features", U"") {
+	NATURAL (fromFeature, U"From feature", U"1")
+	INTEGER (toFeature, U"To feature", U"0 (=all)")
+	NATURAL (fromRow, U"From row", U"1")
+	INTEGER (toRow, U"To row", U"0 (=all)")
+	REAL (minimum, U"Minimum", U"0.0")
+	REAL (maximum, U"maximum", U"0.0")
+	BOOLEAN (garnish, U"Garnish", 1)
+	OK
+DO
+	GRAPHICS_EACH (NMF)
+	NMF_paintFeatures (me, GRAPHICS, fromFeature, toFeature, fromRow, toRow, minimum,  maximum, 0, 0, garnish);
+	GRAPHICS_EACH_END
+}
+
+FORM (GRAPHICS_NMF_paintWeights, U"NMF: Paint weights", U"") {
+	NATURAL (fromWeight, U"From weight", U"1")
+	INTEGER (toWeight, U"To weight", U"0 (=all)")
+	NATURAL (fromRow, U"From row", U"1")
+	INTEGER (toRow, U"To row", U"0 (=all)")
+	REAL (minimum, U"Minimum", U"0.0")
+	REAL (maximum, U"maximum", U"0.0")
+	
+	BOOLEAN (garnish, U"Garnish", 1)
+	OK
+DO
+	GRAPHICS_EACH (NMF)
+	NMF_paintWeights (me, GRAPHICS, fromWeight, toWeight, fromRow, toRow, minimum,  maximum, 0, 0, garnish);
+	GRAPHICS_EACH_END
+}
+
 
 DIRECT (NEW_NMF_to_Matrix) {
 	CONVERT_EACH (NMF)
@@ -5329,7 +5468,7 @@ DO
 }
 
 FORM (GRAPHICS_Sound_drawWhere, U"Sound: Draw where", U"Sound: Draw where...") {
-	praat_TimeFunction_RANGE(fromTime,toTime)
+	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (ymin, U"left Vertical range", U"0.0")
 	REAL (ymax, U"right Vertical range", U"0.0 (= auto)")
 	BOOLEAN (garnish, U"Garnish", true)
@@ -5553,11 +5692,11 @@ DO
 
 FORM (NEW_Sound_to_ComplexSpectrogram, U"Sound: To ComplexSpectrogram", nullptr) {
 	POSITIVE (windowLength, U"Window length (s)", U"0.015")
-	POSITIVE (timeStep, U"Time step", U"0.005")
+	POSITIVE (maximumFrequency, U"Maximum frequency (Hz)", U"8000.0")
 	OK
 DO
 	CONVERT_EACH (Sound)
-		autoComplexSpectrogram result = Sound_to_ComplexSpectrogram (me, windowLength, timeStep);
+		autoComplexSpectrogram result = Sound_to_ComplexSpectrogram (me, windowLength, maximumFrequency);
 	CONVERT_EACH_END (my name.get())
 }
 
@@ -5641,9 +5780,19 @@ DO
 	CONVERT_EACH_END (my name.get())
 }
 
+FORM (NEW_Sound_extractElectroglottogram, U"Sound: Extract Electroglottogram", U"Sound: Extract Electroglottogram...") {
+	NATURAL (channelNumber, U"Channel number", U"1")
+	BOOLEAN (invert, U"Invert", 0)
+	OK
+DO
+	CONVERT_EACH (Sound)
+		autoElectroglottogram result = Sound_extractElectroglottogram (me, channelNumber, invert);
+	CONVERT_EACH_END (my name.get())
+}
+	
 FORM (NEW_Sound_to_Polygon, U"Sound: To Polygon", U"Sound: To Polygon...") {
 	CHANNEL (channel, U"Channel (number, Left, or Right)", U"1")
-	praat_TimeFunction_RANGE(fromTime,toTime)
+	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (ymin, U"left Vertical range", U"0.0")
 	REAL (ymax, U"right Vertical range", U"0.0")
 	REAL (connectionY, U"Connection y-value", U"0.0")
@@ -5657,7 +5806,7 @@ DO
 
 FORM (NEW1_Sounds_to_Polygon_enclosed, U"Sounds: To Polygon (enclosed)", U"Sounds: To Polygon (enclosed)...") {
 	CHANNEL (channel, U"Channel (number, Left, or Right)", U"1")
-	praat_TimeFunction_RANGE(fromTime,toTime)
+	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (ymin, U"left Vertical range", U"0.0")
 	REAL (ymax, U"right Vertical range", U"0.0")
 	OK
@@ -5746,7 +5895,7 @@ DO
 
 FORM (GRAPHICS_Sound_paintWhere, U"Sound paint where", U"Sound: Paint where...") {
 	COLOUR (colour, U"Colour (0-1, name, or {r,g,b})", U"0.5")
-	praat_TimeFunction_RANGE(fromTime,toTime)
+	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (ymin, U"left Vertical range", U"0.0")
 	REAL (ymax, U"right Vertical range", U"0.0")
 	REAL (level, U"Fill from level", U"0.0")
@@ -6038,7 +6187,7 @@ DO
 	MODIFY_EACH_END
 }
 
-FORM (MODIFY_SpeechSynthesizer_speechOutputSettings, U"SpeechSynthesizer: Set speech output settings", U"SpeechSynthesizer: Set speech output settings...") {
+FORM (MODIFY_SpeechSynthesizer_speechOutputSettings, U"SpeechSynthesizer: Speech output settings", U"SpeechSynthesizer: Speech output settings...") {
 	POSITIVE (samplingFrequency, U"Sampling frequency (Hz)", U"44100.0")
 	REAL (wordGap, U"Gap between words (s)", U"0.01")
 	POSITIVE (pitchAdjustment, U"Pitch multiplier (0.5-2.0)", U"1.0")
@@ -6050,14 +6199,16 @@ FORM (MODIFY_SpeechSynthesizer_speechOutputSettings, U"SpeechSynthesizer: Set sp
 	OK
 DO
 	if (wordGap < 0.0) wordGap = 0.0;
-	Melder_require (pitchAdjustment >= 0.5 && pitchAdjustment <= 2.0, U"The pitch adjustment should be between 0.5 and 2.0.");
-	Melder_require (pitchRange >= 0.0 && pitchRange <= 2.0, U"The pitch range multiplier should be between 0.0 and 2.0.");
+	Melder_require (pitchAdjustment >= 0.5 && pitchAdjustment <= 2.0,
+		U"The pitch adjustment should be between 0.5 and 2.0.");
+	Melder_require (pitchRange >= 0.0 && pitchRange <= 2.0,
+		U"The pitch range multiplier should be between 0.0 and 2.0.");
 	MODIFY_EACH (SpeechSynthesizer)
 		SpeechSynthesizer_setSpeechOutputSettings (me, samplingFrequency, wordGap, pitchAdjustment, pitchRange, wordsPerMinute, outputPhonemeCodes);
 	MODIFY_EACH_END
 }
 
-FORM (MODIFY_SpeechSynthesizer_setSpeechOutputSettings, U"SpeechSynthesizer: Set speech output settings", U"SpeechSynthesizer: Set speech output settings...") {
+FORM (MODIFY_SpeechSynthesizer_setSpeechOutputSettings, U"SpeechSynthesizer: Set speech output settings", U"SpeechSynthesizer: Speech output settings...") {
 	POSITIVE (samplingFrequency, U"Sampling frequency (Hz)", U"44100.0")
 	REAL (wordGap, U"Gap between words (s)", U"0.01")
 	INTEGER (pitchAdjustment_0_99, U"Pitch adjustment (0-99)", U"50")
@@ -6069,7 +6220,7 @@ FORM (MODIFY_SpeechSynthesizer_setSpeechOutputSettings, U"SpeechSynthesizer: Set
 		OPTION (U"IPA")
 	OK
 DO
-	if (wordGap < 0) wordGap = 0;
+	if (wordGap < 0.0) wordGap = 0.0;
 	if (pitchAdjustment_0_99 < 0) pitchAdjustment_0_99 = 0;
 	if (pitchAdjustment_0_99 > 99) pitchAdjustment_0_99 = 99;
 	if (pitchRange_0_99 < 0) pitchRange_0_99 = 0;
@@ -6077,7 +6228,7 @@ DO
 	double pitchAdjustment = (1.5/99.0 * pitchAdjustment_0_99 + 0.5);
 	double pitchRange = (pitchRange_0_99 / 49.5);
 	MODIFY_EACH (SpeechSynthesizer)
-		SpeechSynthesizer_setSpeechOutputSettings (me, samplingFrequency, wordGap, pitchAdjustment, pitchRange, wordsPerMinute,  outputPhonemeCodes);
+		SpeechSynthesizer_setSpeechOutputSettings (me, samplingFrequency, wordGap, pitchAdjustment, pitchRange, wordsPerMinute, outputPhonemeCodes);
 		SpeechSynthesizer_setEstimateSpeechRateFromSpeech (me, estimateWordsPerMinute);
 	MODIFY_EACH_END
 }
@@ -6093,9 +6244,8 @@ DO
 	CONVERT_TWO (SpeechSynthesizer, TextGrid)
 		autoTextGrid annotations;
 		autoSound result = SpeechSynthesizer_TextGrid_to_Sound (me, you, tierNumber, intervalNumber, (createAnnotations ? & annotations : nullptr ));
-		if (createAnnotations) {
+		if (createAnnotations)
 			praat_new (annotations.move(), my name.get());
-		}
 	CONVERT_TWO_END (my name.get())
 }
 
@@ -6123,7 +6273,8 @@ FORM (NEW1_SpeechSynthesizer_Sound_TextGrid_align2, U"SpeechSynthesizer & Sound 
     REAL (trimDuration, U"Silence trim duration (s)", U"0.08")
     OK
 DO
-   trimDuration = trimDuration < 0.0 ? 0.0 : trimDuration;
+	if (trimDuration < 0.0)
+		trimDuration = 0.0;
     CONVERT_THREE (SpeechSynthesizer, Sound, TextGrid)
 		autoTextGrid result = SpeechSynthesizer_Sound_TextGrid_align2 (me, you, him, tierNumber, fromInterval, toInterval, silenceThreshold_dB, minimumSilenceDuration, minimumSoundingDuration, trimDuration);
     CONVERT_THREE_END (his name.get(), U"_aligned")
@@ -6972,21 +7123,24 @@ DIRECT (NEW1_CreateIrisDataset) {
 }
 
 FORM (INFO_TableOfReal_reportMultivariateNormality, U"TableOfReal: Report multivariate normality (BHEP)", U"TableOfReal: Report multivariate normality (BHEP)...") {
-	REAL (h, U"Smoothing parameter", U"0.0")
+	REAL (smoothing, U"Smoothing parameter", U"0.0")
 	OK
 DO
 	INFO_ONE (TableOfReal)
+		bool singular;
 		double tnb, lnmu, lnvar;
-		double prob = TableOfReal_normalityTest_BHEP (me, &h, &tnb, &lnmu, &lnvar);
+		double prob = TableOfReal_normalityTest_BHEP (me, & smoothing, & tnb, & lnmu, & lnvar, & singular);
 		MelderInfo_open ();
 		MelderInfo_writeLine (U"Baringhaus–Henze–Epps–Pulley normality test:");
 		MelderInfo_writeLine (U"Significance of normality: ", prob);
 		MelderInfo_writeLine (U"BHEP statistic: ", tnb);
 		MelderInfo_writeLine (U"Lognormal mean: ", lnmu);
 		MelderInfo_writeLine (U"Lognormal variance: ", lnvar);
-		MelderInfo_writeLine (U"Smoothing: ", h);
+		MelderInfo_writeLine (U"Smoothing: ", smoothing);
 		MelderInfo_writeLine (U"Sample size: ", my numberOfRows);
 		MelderInfo_writeLine (U"Number of variables: ", my numberOfColumns);
+		if (singular)
+			MelderInfo_writeLine (U"(Attention: the covariance matrix was singular!)");
 		MelderInfo_close ();
 	INFO_ONE_END
 }
@@ -7790,6 +7944,7 @@ void praat_uvafon_David_init () {
 		classChebyshevSeries, classClassificationTable, classComplexSpectrogram, classConfusion,
 		classCorrelation, classCovariance, classDiscriminant, classDTW,
 		classEigen, classExcitationList, classEditCostsTable, classEditDistanceTable,
+		classElectroglottogram,
 		classFileInMemory, classFileInMemorySet, classFileInMemoryManager, classFormantFilter,
 		classIndex, classKlattTable, classNMF,
 		classPermutation, classISpline, classLegendreSeries,
@@ -7983,7 +8138,6 @@ void praat_uvafon_David_init () {
 	praat_addAction1 (classCovariance, 0, U"To Covariance (within)", nullptr, 0, NEW1_Covariances_to_Covariance_within);
 
 	praat_addAction2 (classCovariance, 1, classTableOfReal, 1, U"To TableOfReal (mahalanobis)...", nullptr, 0, NEW1_Covariance_TableOfReal_mahalanobis);
-
 	praat_addAction1 (classClassificationTable, 0, U"ClassificationTable help", nullptr, 0, HELP_ClassificationTable_help);
 	praat_TableOfReal_init (classClassificationTable);
 	praat_addAction1 (classClassificationTable, 0, U"Get class index at maximum in row...", U"Get column index...", 1, INTEGER_ClassificationTable_getClassIndexAtMaximumInRow);
@@ -8159,6 +8313,13 @@ void praat_uvafon_David_init () {
 	praat_addAction1 (classEditCostsTable, 1, U"Set costs (others)...", nullptr, 1, MODIFY_EditCostsTable_setCosts_others);
 	praat_addAction1 (classEditCostsTable, 1, U"To TableOfReal", nullptr, 0, NEW_EditCostsTable_to_TableOfReal);
 
+	praat_addAction1 (classElectroglottogram, 1, U"High-pass filter...", nullptr, 0, NEW_Electroglottogram_highPassFilter);
+	praat_addAction1 (classElectroglottogram, 1, U"Get closed glottis intervals...", nullptr, 0, NEW_Electroglottogram_getClosedGlottisIntervals);
+	praat_addAction1 (classElectroglottogram, 1, U"To AmplitudeTier (levels)...", nullptr, 0, NEW_Electroglottogram_to_AmplitudeTier_levels);
+	praat_addAction1 (classElectroglottogram, 1, U"Derivative...", nullptr, 0, NEW_Electroglottogram_derivative);
+	praat_addAction1 (classElectroglottogram, 1, U"First central difference...", nullptr, 0, NEW_Electroglottogram_firstCentralDifference);
+	praat_addAction1 (classElectroglottogram, 1, U"To Sound", nullptr, 0, NEW_Electroglottogram_to_Sound);
+	
 	praat_Index_init (classStringsIndex);
 	praat_addAction1 (classIndex, 0, U"Index help", nullptr, 0, HELP_Index_help);
 	praat_addAction1 (classStringsIndex, 1, U"Get class label...", nullptr, 0, INFO_StringsIndex_getClassLabelFromClassIndex);
@@ -8264,7 +8425,8 @@ void praat_uvafon_David_init () {
 	praat_addAction1 (classLongSound, 2, U"Save as stereo NIST file...", U"Save as stereo NeXt/Sun file...", 1, SAVE_LongSounds_saveAsStereoNISTFile);
 	praat_addAction1 (classLongSound, 2, U"Write to stereo NIST file...", U"Write to stereo NeXt/Sun file...", praat_HIDDEN + praat_DEPTH_1, SAVE_LongSounds_saveAsStereoNISTFile);
 
-	praat_addAction1 (classLtas, 0, U"Report spectral tilt...", U"Get slope...", 1, INFO_Ltas_reportSpectralTilt);
+	praat_addAction1 (classLtas, 0, U"Report spectral trend...", U"Get slope...", 1, INFO_Ltas_reportSpectralTrend);
+	praat_addAction1 (classLtas, 0, U"Report spectral tilt...", U"Get slope...", praat_DEPTH_1 + praat_HIDDEN, INFO_Ltas_reportSpectralTrend);
 
 	praat_addAction1 (classMatrix, 0, U"Scatter plot...", U"Paint cells...", 1, GRAPHICS_Matrix_scatterPlot);
 	praat_addAction1 (classMatrix, 0, U"Draw as squares...", U"Scatter plot...", 1, GRAPHICS_Matrix_drawAsSquares);
@@ -8288,6 +8450,7 @@ void praat_uvafon_David_init () {
 	praat_addAction1 (classMatrix, 0, U"To SVD", U"To Eigen", praat_HIDDEN, NEW_Matrix_to_SVD);
 	praat_addAction1 (classMatrix, 0, U"To NMF (m.u.)...", U"To SVD", praat_HIDDEN, NEW_Matrix_to_NMF_mu);
 	praat_addAction1 (classMatrix, 0, U"To NMF (ALS)...", U"To SVD", praat_HIDDEN, NEW_Matrix_to_NMF_als);
+	praat_addAction1 (classMatrix, 0, U"To NMF (IS)...", U"To SVD", praat_HIDDEN, NEW_Matrix_to_NMF_is);
 	praat_addAction1 (classMatrix, 0, U"Eigen (complex)", U"Eigen", praat_HIDDEN, NEWTIMES2_Matrix_eigen_complex);
 	praat_addAction1 (classMatrix, 2, U"To DTW...", U"To ParamCurve", 1, NEW1_Matrices_to_DTW);
 
@@ -8330,11 +8493,15 @@ void praat_uvafon_David_init () {
 	praat_Spline_init (classMSpline);
 
 	praat_addAction1 (classNMF, 0, U"NMF help", nullptr, 0, HELP_NMF_help);
+	praat_addAction1 (classNMF, 0, U"Paint features...", nullptr, 0, GRAPHICS_NMF_paintFeatures);
+	praat_addAction1 (classNMF, 0, U"Paint weights...", nullptr, 0, GRAPHICS_NMF_paintWeights);
 	praat_addAction1 (classNMF, 0, U"To Matrix", nullptr, 0, NEW_NMF_to_Matrix);
 	
 	praat_addAction2 (classNMF, 1, classMatrix, 1, U"Get Euclidean distance", nullptr, 0, REAL_NMF_Matrix_getEuclideanDistance);
+	praat_addAction2 (classNMF, 1, classMatrix, 1, U"Get Itakura-Saito distance", nullptr, 0, REAL_NMF_Matrix_getItakuraSaitoDivergence);
 	praat_addAction2 (classNMF, 1, classMatrix, 1, U"Improve factorization (ALS)...", nullptr, 0, MODIFY_NMF_Matrix_improveFactorization_als);
 	praat_addAction2 (classNMF, 1, classMatrix, 1, U"Improve factorization (m.u.)...", nullptr, 0, MODIFY_NMF_Matrix_improveFactorization_mu);
+	praat_addAction2 (classNMF, 1, classMatrix, 1, U"Improve factorization (IS)...", nullptr, 0, MODIFY_NMF_Matrix_improveFactorization_is);
 	
 	praat_addAction1 (classPatternList, 0, U"Draw", nullptr, 0, 0);
 	praat_addAction1 (classPatternList, 0, U"Draw...", nullptr, 0, GRAPHICS_PatternList_draw);
@@ -8500,6 +8667,7 @@ void praat_uvafon_David_init () {
 	praat_addAction1 (classSound, 0, U"To MelFilter...", U"To BarkFilter...", praat_DEPRECATED_2014 | praat_DEPTH_1, NEW_Sound_to_MelFilter);
 	praat_addAction1 (classSound, 0, U"To MelSpectrogram...", U"To BarkSpectrogram...", praat_DEPTH_1, NEW_Sound_to_MelSpectrogram);
 	praat_addAction1 (classSound, 0, U"To ComplexSpectrogram...", U"To MelSpectrogram...", praat_DEPTH_1 + praat_HIDDEN, NEW_Sound_to_ComplexSpectrogram);
+    praat_addAction1 (classSound, 0, U"Extract Electroglottogram...", U"Extract part for overlap...", 1, NEW_Sound_extractElectroglottogram);
 
 	praat_addAction1 (classSound, 0, U"To Polygon...", U"Down to Matrix", praat_DEPTH_1 | praat_HIDDEN, NEW_Sound_to_Polygon);
     praat_addAction1 (classSound, 2, U"To Polygon (enclosed)...", U"Cross-correlate...", praat_DEPTH_1 | praat_HIDDEN, NEW1_Sounds_to_Polygon_enclosed);

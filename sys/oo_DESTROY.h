@@ -1,6 +1,6 @@
 /* oo_DESTROY.h
  *
- * Copyright (C) 1994-2007,2009-2018 Paul Boersma
+ * Copyright (C) 1994-2007,2009-2019 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -78,20 +78,19 @@
 		our x [_i]. destroy (); \
 	}
 
-#define oo_STRUCT_VECTOR_FROM(Type, x, min, max)  \
-	{ \
-		integer _min = (min), _max = (max); \
-		if (our x) { \
-			for (integer _i = _min; _i <= _max; _i ++) { \
-				our x [_i]. destroy (); \
-			} \
-			NUMvector_free <struct##Type> (our x, _min); \
-		} \
-	}
+#define oo_STRUCTVEC(Type, x, n)  \
+{ \
+	for (integer _i = 1; _i <= our x.size; _i ++) { \
+		our x [_i]. destroy (); \
+	} \
+	if (! _thisStructCanAutodestroyItsMembers_) { \
+		our x. reset (); \
+	} \
+}
 
 #define oo_OBJECT(Class, version, x)  \
 	if (! _thisStructCanAutodestroyItsMembers_) { \
-		x. reset (); \
+		our x. reset (); \
 	}
 
 #define oo_COLLECTION_OF(Class, x, ItemClass, version)

@@ -172,6 +172,50 @@ inline void VECclip_inplace_inline (VEC x, double min, double max) {
 			x [i] = max;
 }
 
+inline void VECabs (VECVU const& result, constVECVU const& v) {
+	Melder_assert (result.size == v.size);
+	for (integer i = 1; i <= result.size; i ++)
+		result [i] = fabs (v [i]);
+}
+
+inline autoVEC newVECabs (constVECVU const& v) {
+	autoVEC result = newVECraw (v.size);
+	VECabs (result.get(), v);
+	return result;
+}
+
+inline void VECabs_inplace (VECVU const& v) {
+	for (integer i = 1; i <= v.size; i ++)
+		v [i] = fabs (v [i]);
+}
+
+inline void INTVEClinear (INTVEC const& v, integer start, integer step) {
+	for (integer i = 1; i <= v.size; i ++)
+		v [i] = start + (i - 1) * step;
+}
+
+inline autoINTVEC newINTVEClinear (integer size, integer start, integer step) {
+	autoINTVEC result = newINTVECraw (size);
+	INTVEClinear (result, start, step);
+	return result;
+}
+
+inline bool NUMhasZeroElement (constMATVU const m) {
+	for (integer irow = 1; irow <= m.nrow; irow ++)
+		for (integer icol = 1; icol <= m.ncol; icol++)
+			if (m [irow][icol] == 0.0)
+				return true;
+	return false;
+}
+
+inline integer NUMcountNumberOfNonZeroElements (constVECVU const& v) {
+	integer count = 0;
+	for (integer i = 1; i <= v.size; i ++)
+		if (v [i] != 0.0)
+			++ count;
+	return count;
+}
+
 inline double NUMmul (constVECVU const& x, constMATVU const& m, constVECVU const& y) { // x'. M . y
 	Melder_assert (x.size == m.nrow);
 	Melder_assert (y.size == m.ncol);
@@ -256,7 +300,7 @@ void NUMstatistics_huber (constVEC x, double *inout_location, bool wantlocation,
 	k_stdev Winsorizes at `k_stdev' standard deviations.
 */
 
-autoVEC VECmonotoneRegression (constVEC x);
+autoVEC newVECmonotoneRegression (constVEC x);
 /*
 	Find numbers xs[1..n] that have a monotone relationship with
 	the numbers in x[1..n].
@@ -395,23 +439,28 @@ void NUMrank (vector<T> a) {
 }
 
 void MATlowerCholeskyInverse_inplace (MAT a, double *out_lnd);
+inline autoMAT newMATlowerCholeskyInverse (constMAT const& a) {
+	autoMAT result = newMATcopy (a);
+	MATlowerCholeskyInverse_inplace (result.get(), nullptr);
+	return result;
+}
 /*
 	Calculates L^-1, where A = L.L' is a symmetric positive definite matrix
 	and ln(determinant). L^-1 in lower, leave upper part intact.
 */
 
-autoMAT MATinverse_fromLowerCholeskyInverse (constMAT m);
+autoMAT newMATinverse_fromLowerCholeskyInverse (constMAT m);
 /*
 	Return the complete matrix inverse when only the inverse of the lower Cholesky part is given.
 	Input m is a square matrix, in the lower part is the inverse of the lower Cholesky part as calculated by NUMlowerCholeskyInverse.
 */
 
-double MATdeterminant_fromSymmetricMatrix (constMAT m);
+double NUMdeterminant_fromSymmetricMatrix (constMAT m);
 /*
 	ln(determinant) of a symmetric p.s.d. matrix
 */
 
-double NUMmahalanobisDistance (constMAT lowerInverse, constVEC v, constVEC m);
+double NUMmahalanobisDistanceSquared (constMAT lowerInverse, constVEC v, constVEC m);
 /*
 	Calculates squared Mahalanobis distance: (v-m)'S^-1(v-m).
 	Input matrix (li) is the inverse L^-1 of the Cholesky decomposition S = L.L'
@@ -462,21 +511,33 @@ integer NUMsolveQuadraticEquation (double a, double b, double c, double *x1, dou
 	If no roots found then x1 and x2 will not be changed.
 */
 
-autoVEC NUMsolveEquation (constMATVU const& a, constVECVU const& b, double tol);
+autoVEC newVECsolve (constMATVU const& a, constVECVU const& b, double tol);
 /*
 	Solve the equation: A.x = b for x;
 	a[1..nr][1..nc], b[1..nr] and the unknown x[1..nc]
 	Algorithm: s.v.d.
 */
 
-autoMAT NUMsolveEquations (constMATVU const& a, constMATVU const& b, double tol);
+autoMAT newMATsolve (constMATVU const& a, constMATVU const& b, double tol);
 /*
 	Solve the equations: A.X = B;
 	a[1..nr][1..nc], b[1..nr][1..nc2] and the unknown x[1..nc][1..nc2]
 	Algorithm: s.v.d.
 */
 
-autoVEC NUMsolveNonNegativeLeastSquaresRegression (constMAT m, constVEC d, double tol, integer itermax);
+
+/*
+	Solve y = D.x + e for x, where x is sparse and e is observation noise.
+	Minimize the 2-norm (y - D.x), where maximally K elements of x may be non-zero, by an iterative hard thresholding algorithm.
+	D is a MxN real matrix with (many) more columns than rows, i.e. N > M. We need to find a vector x
+	with maximally K non-zero elements (sparse).
+	The algorithm is described in T. Blumensath & M.E. Davies, "Normalised iterative hard thresholding;
+	guaranteed stability and performance", IEEE Journal of Selected Topics in Signal Processing #4, 298-309.
+	x in/out: the start value (you typically would start the iteration with all zeros).
+*/
+void newVECsolveSparse_IHT (VECVU const& x, constMATVU const& p, constVECVU const& y, integer numberOfNonZeros, integer maximumNumberOfIterations, double tolerance, bool info);
+
+autoVEC newVECsolveNonNegativeLeastSquaresRegression (constMAT m, constVEC d, double tol, integer itermax);
 /*
 	Solve the equation: M.b = d for b under the constraint: all b[i] >= 0;
 	m[1..nr][1..nc], d[1..nr] and b[1..nc].
@@ -497,7 +558,7 @@ void NUMsolveConstrainedLSQuadraticRegression (constMAT o, constVEC y, double *o
 	Psychometrika 48, 631-638.
 */
 
-autoVEC NUMsolveWeaklyConstrainedLinearRegression (constMAT f, constVEC phi, double alpha, double delta);
+autoVEC newVECsolveWeaklyConstrainedLinearRegression (constMAT f, constVEC phi, double alpha, double delta);
 /*
 	Solve g(t) = ||Ft - phi||^2 + alpha (t't - delta)^2 for t[1..m],
 	where F[1..n][1..m] is a matrix, phi[1..n] a given vector, and alpha
@@ -674,11 +735,6 @@ double NUMinvTukeyQ (double p, double cc, double df, double rr);
  *  df = degrees of freedom of error term
  */
 
-double NUMnormalityTest_HenzeZirkler (constMAT data, double *inout_beta, double *out_tnb, double *out_lnmu, double *out_lnvar);
-/*
-	Multivariate normality test of nxp data matrix according to the method described in Henze & Wagner (1997).
-	The test statistic is returned in tnb, together with the lognormal mean 'lnmu' and the lognormal variance 'lnvar'.
-*/
 
 /******  Frequency in Hz to other frequency reps ****/
 
@@ -850,7 +906,7 @@ double NUMcubicSplineInterpolation (constVEC xa, constVEC ya, constVEC y2a, doub
 	a value of x, this routine returns an interpolated value y.
 */
 
-autoVEC NUMbiharmonic2DSplineInterpolation_getWeights (constVECVU const& x, constVECVU const& y, constVECVU const& w);
+autoVEC newVECbiharmonic2DSplineInterpolation_getWeights (constVECVU const& x, constVECVU const& y, constVECVU const& w);
 /*
 	Input: x[1..numberOfPoints], y[1..numberOfPoints], (xp,yp)
 	Output: interpolated result
@@ -860,7 +916,7 @@ double NUMbiharmonic2DSplineInterpolation (constVECVU const& x, constVECVU const
 /* Biharmonic spline interpolation based on Green's function.
 	. Given z[i] values at points (x[i],y[i]) for i=1..n, 
 	Get value at new point (px,py).
-	1. Calculate weights w once: NUMbiharmonic2DSplineInterpolation_getWeights
+	1. Calculate weights w once: newVECbiharmonic2DSplineInterpolation_getWeights
 	2. Interpolate at (xp,yp): NUMbiharmonic2DSplineInterpolation
 	Input: x[1..numberOfPoints], y[1..numberOfPoints], z[1..numberOfPoints], weights[1..numberOfPoints]
 	Output: weights[1..numberOfPoints]
@@ -1098,7 +1154,7 @@ void NUMlineFit (constVEC x, constVEC y, double *out_m, double *out_intercept, i
  * 3 robust complete Theil (very slow for large N, O(N^2))
  */
 
-void NUMlineFit_theil (constVEC x, constVEC y, double *out_m, double *out_intercept, bool incompleteMethod);
+void NUMlineFit_theil (constVEC const& x, constVEC const& y, double *out_m, double *out_intercept, bool completeMethod);
 /*
  * Preconditions:
  *		all x[i] should be different, i.e. x[i] != x[j] for all i = 1..(numberOfPoints - 1), j = (i+1) ..numberOfPoints
@@ -1118,7 +1174,7 @@ void NUMlineFit_theil (constVEC x, constVEC y, double *out_m, double *out_interc
  */
 
 
-void NUMlineFit_LS (constVEC x, constVEC y, double *out_m, double *out_intercept);
+void NUMlineFit_LS (constVEC const& x, constVEC const& y, double *out_m, double *out_intercept);
 
 /* The binomial distribution has the form,
 
@@ -1161,6 +1217,21 @@ void NUMlineFit_LS (constVEC x, constVEC y, double *out_m, double *out_intercept
 integer NUMrandomBinomial (double p, integer n);
 double NUMrandomBinomial_real (double p, integer n);
 
+/*
+	Generates random numbers according to a Gamma distribution with shape parameter "alpha"
+	and rate parameter "beta".
+	
+	The Gamma distribution of order (shape) parameter alpha and rate (beta) is defined as:
+
+		f(x; alpha, beta) = (1 / Gamma (alpha)) beta^alpha x^(alpha-1) e^(-beta.x),
+		for x > 0, alpha > 0 && beta > 0.
+
+	The method is described in
+		G. Marsaglia & W. Tsang (2000): A simple method for generating gamma variables. ACM Transactions on Mathematical Software, 26(3):363-372.
+	Preconditions: alpha > 0 && beta > 0.
+*/
+double NUMrandomGamma (const double alpha, const double beta);
+
 // IEEE: Programs for digital signal processing section 4.3 LPTRN (modfied)
 // lpc[1..n] to rc[1..n]
 void VECrc_from_lpc (VEC rc, constVEC lpc);
@@ -1181,13 +1252,8 @@ void VECarea_from_lpc (VEC area, constVEC lpc);
 */
 void NUMfixIndicesInRange (integer lowerLimit, integer upperLimit, integer *lowIndex, integer *highIndex);
 
-void NUMgetEntropies (constMAT m, double *out_h, double *out_hx, 
+void NUMgetEntropies (constMATVU const& m, double *out_h, double *out_hx, 
 	double *out_hy,	double *out_hygx, double *out_hxgy, double *out_uygx, double *out_uxgy, double *out_uxy);
-
-double NUMfrobeniusnorm (constMAT x);
-/*
-	Returns frobenius norm of matrix sqrt (sum (i=1:nrow, j=1:ncol, x[i][j]^2))
-*/
 
 inline double NUMmean_weighted (constVEC x, constVEC w) {
 	Melder_assert (x.size == w.size);

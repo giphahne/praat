@@ -2,7 +2,7 @@
 #define _melder_int_h_
 /* melder_int.h
  *
- * Copyright (C) 1992-2018 Paul Boersma
+ * Copyright (C) 1992-2019 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
  */
 
 /*
- * The following two lines are for obsolete (i.e. C99) versions of stdint.h
- */
+	The following two lines are for obsolete (i.e. C99) versions of stdint.h
+*/
 #define __STDC_LIMIT_MACROS
 #define __STDC_CONSTANT_MACROS
 #include <stdint.h>
@@ -76,6 +76,14 @@ inline static integer uinteger_to_integer (uinteger n) {
 	return (integer) n;
 }
 
+inline static integer integer_abs (integer n) {
+	Melder_assert (sizeof (integer) == sizeof (long) || sizeof (integer) == sizeof (long long));
+	if (sizeof (integer) == sizeof (long))
+		return labs (n);
+	else // sizeof (integer) == sizeof (long long)
+		return llabs (n);
+}
+
 struct MelderIntegerRange {
 	integer first, last;
 	bool isEmpty () { return ( last < first ); }
@@ -84,6 +92,43 @@ struct MelderIntegerRange {
 		return std::max (result, integer (0));
 	}
 };
+
+template <typename T>
+void Melder_clipLeft (T minimum, T *var) {
+	if (*var < minimum)
+		*var = minimum;
+}
+
+template <typename T>
+T Melder_clippedLeft (T minimum, T var) {
+	return std::max (minimum, var);
+}
+
+template <typename T>
+void Melder_clipRight (T *var, T maximum) {
+	if (*var > maximum)
+		*var = maximum;
+}
+
+template <typename T>
+T Melder_clippedRight (T var, T maximum) {
+	return std::min (var, maximum);
+}
+
+template <typename T>
+void Melder_clip (T minimum, T *var, T maximum) {
+	Melder_assert (maximum >= minimum);
+	if (*var < minimum)
+		*var = minimum;
+	else if (*var > maximum)
+		*var = maximum;
+}
+
+template <typename T>
+T Melder_clipped (T minimum, T var, T maximum) {
+	Melder_assert (maximum >= minimum);
+	return std::max (minimum, std::min (var, maximum));
+}
 
 /* End of file melder_int.h */
 #endif

@@ -247,17 +247,23 @@ void FilterBank_drawFrequencyScales (FilterBank me, Graphics g, int horizontalSc
 void FilterBank_paint (FilterBank me, Graphics g, double xmin, double xmax,
 	double ymin, double ymax, double minimum, double maximum, bool garnish)
 {
-	if (xmax <= xmin)
-		xmin = my xmin, xmax = my xmax;
-	if (ymax <= ymin)
-		ymin = my ymin, ymax = my ymax;
+	if (xmax <= xmin) {
+		xmin = my xmin;
+		xmax = my xmax;
+	}
+	if (ymax <= ymin) {
+		ymin = my ymin;
+		ymax = my ymax;
+	}
 	integer ixmin, ixmax, iymin, iymax;
 	(void) Matrix_getWindowSamplesX (me, xmin - 0.49999 * my dx, xmax + 0.49999 * my dx, & ixmin, & ixmax);
 	(void) Matrix_getWindowSamplesY (me, ymin - 0.49999 * my dy, ymax + 0.49999 * my dy, & iymin, & iymax);
 	if (maximum <= minimum)
 		(void) Matrix_getWindowExtrema (me, ixmin, ixmax, iymin, iymax, & minimum, & maximum);
-	if (maximum <= minimum)
-		minimum -= 1.0, maximum += 1.0;
+	if (maximum <= minimum) {
+		minimum -= 1.0;
+		maximum += 1.0;
+	}
 	if (xmin >= xmax || ymin >= ymax)
 		return;
 	Graphics_setInner (g);
@@ -305,15 +311,15 @@ void BarkFilter_drawSekeyHansonFilterFunctions (BarkFilter me, Graphics g, int t
 		integer ibegin, iend;
 		setDrawingLimits (a.peek(), n, ymin, ymax, & ibegin, & iend);
 		if (ibegin <= iend) {
-			double fmin = zmin + (ibegin - 1) * df;
-			double fmax = zmax - (n - iend) * df;
+			const double fmin = zmin + (ibegin - 1) * df;
+			const double fmax = zmax - (n - iend) * df;
 			Graphics_function (g, a.peek(), ibegin, iend, fmin, fmax);
 		}
 	}
 	Graphics_unsetInner (g);
 	if (garnish) {
-		double distance = ( dbScale ? 10.0 : 1.0 );
-		conststring32 ytext = ( dbScale ? U"Amplitude (dB)" : U"Amplitude" );
+		const double distance = ( dbScale ? 10.0 : 1.0 );
+		const conststring32 ytext = ( dbScale ? U"Amplitude (dB)" : U"Amplitude" );
 		Graphics_drawInnerBox (g);
 		Graphics_marksBottom (g, 2, true, true, false);
 		Graphics_marksLeftEvery (g, 1.0, distance, true, true, false);
@@ -355,18 +361,16 @@ void FilterBank_drawTimeSlice (FilterBank me, Graphics g, double t,
 		Graphics_drawInnerBox (g);
 		Graphics_marksBottom (g, 2, true, true, false);
 		Graphics_marksLeft (g, 2, true, true, false);
-		if (xlabel) {
+		if (xlabel)
 			Graphics_textBottom (g, false, xlabel);
-		}
 	}
 }
 
 void MelFilter_drawFilterFunctions (MelFilter me, Graphics g, int toFreqScale, int fromFilter, int toFilter,
 	double zmin, double zmax, int dbScale, double ymin, double ymax, bool garnish)
 {
-	if (! checkLimits (me, FilterBank_MEL, toFreqScale, & fromFilter, & toFilter, & zmin, & zmax, dbScale, & ymin, & ymax)) {
+	if (! checkLimits (me, FilterBank_MEL, toFreqScale, & fromFilter, & toFilter, & zmin, & zmax, dbScale, & ymin, & ymax))
 		return;
-	}
 	integer n = 1000;
 	autoNUMvector<double> a (1, n);
 
@@ -389,9 +393,8 @@ void MelFilter_drawFilterFunctions (MelFilter me, Graphics g, int toFreqScale, i
 				a [i] = undefined;
 			} else {
 				a [i] = NUMtriangularfilter_amplitude (fl_hz, fc_hz, fh_hz, z);
-				if (dbScale) {
+				if (dbScale)
 					a [i] = to_dB (a [i], 10.0, ymin);
-				}
 			}
 		}
 
@@ -407,8 +410,8 @@ void MelFilter_drawFilterFunctions (MelFilter me, Graphics g, int toFreqScale, i
 	Graphics_unsetInner (g);
 
 	if (garnish) {
-		double distance = ( dbScale ? 10.0 : 1.0 );
-		char32 const *ytext = ( dbScale ? U"Amplitude (dB)" : U"Amplitude" );
+		const double distance = ( dbScale ? 10.0 : 1.0 );
+		const conststring32 ytext = ( dbScale ? U"Amplitude (dB)" : U"Amplitude" );
 		Graphics_drawInnerBox (g);
 		Graphics_marksBottom (g, 2, true, true, false);
 		Graphics_marksLeftEvery (g, 1.0, distance, true, true, false);
@@ -667,11 +670,9 @@ autoBarkSpectrogram BarkFilter_to_BarkSpectrogram (BarkFilter me) {
 autoSpectrogram FormantFilter_to_Spectrogram (FormantFilter me) {
 	try {
 		autoSpectrogram thee = Spectrogram_create (my xmin, my xmax, my nx, my dx, my x1, my ymin, my ymax, my ny, my dy, my y1);
-		for (integer i = 1; i <= my ny; i ++) {
-			for (integer j = 1; j <= my nx; j ++) {
+		for (integer i = 1; i <= my ny; i ++)
+			for (integer j = 1; j <= my nx; j ++)
 				thy z [i] [j] = 4e-10 * pow (10, my z [i] [j] / 10);
-			}
-		}
 		return thee;
 	} catch (MelderError) {
 		Melder_throw (U"Spectrogram not created.");
@@ -691,14 +692,14 @@ autoMFCC MelFilter_to_MFCC (MelFilter me, integer numberOfCoefficients) {
 		Melder_assert (numberOfCoefficients > 0);
 		// 20130220 new interpretation of maximumNumberOfCoefficients necessary for inverse transform 
 		autoMFCC thee = MFCC_create (my xmin, my xmax, my nx, my dx, my x1, my ny - 1, my ymin, my ymax);
-		for (integer frame = 1; frame <= my nx; frame ++) {
-			CC_Frame cf = & thy frame [frame];
+		for (integer iframe = 1; iframe <= my nx; iframe ++) {
+			CC_Frame cf = & thy frame [iframe];
 			for (integer i = 1; i <= my ny; i ++)
-				x [i] = my z [i] [frame];
+				x [i] = my z [i] [iframe];
 			VECcosineTransform_preallocated (y.get(), x.get(), cosinesTable.get());
 			CC_Frame_init (cf, numberOfCoefficients);
-			for (integer i = 1; i <= numberOfCoefficients; i ++)
-				cf -> c [i] = y [i + 1];
+			for (integer icoef = 1; icoef <= numberOfCoefficients; icoef ++)
+				cf -> c [icoef] = y [icoef + 1];
 			cf -> c0 = y [1];
 		}
 		return thee;
@@ -718,19 +719,20 @@ autoMelFilter MFCC_to_MelFilter (MFCC me, integer first, integer last) {
 			first = 0;
 			last = nf - 1;
 		}
-		Melder_require (first >= 0 && last <= nf, U"MFCC_to_MelFilter: coefficients should be in interval [0,", my maximumNumberOfCoefficients, U"].");
+		Melder_require (first >= 0 && last <= nf,
+			U"MFCC_to_MelFilter: coefficients should be in interval [0,", my maximumNumberOfCoefficients, U"].");
 		
-		double df = (my fmax - my fmin) / (nf + 1);
+		const double df = (my fmax - my fmin) / (nf + 1);
 		autoMelFilter thee = MelFilter_create (my xmin, my xmax, my nx, my dx, my x1, my fmin, my fmax, nf, df, df);
 
-		for (integer frame = 1; frame <= my nx; frame ++) {
-			CC_Frame cf = & my frame [frame];
+		for (integer iframe = 1; iframe <= my nx; iframe ++) {
+			CC_Frame cf = & my frame [iframe];
 			integer iend = std::min (last, cf -> numberOfCoefficients);
 			x [1] = ( first == 0 ? cf -> c0 : 0.0 );
-			for (integer i = 1; i <= my maximumNumberOfCoefficients; i ++)
-				x [i + 1] = ( i < first || i > iend ? 0 : cf -> c [i] );
+			for (integer icoef = 1; icoef <= my maximumNumberOfCoefficients; icoef ++)
+				x [icoef + 1] = ( icoef < first || icoef > iend ? 0.0 : cf -> c [icoef] );   // zero extrapolation
 			VECinverseCosineTransform_preallocated (y.get(), x.get(), cosinesTable.get());
-			thy z.column (frame) <<= y.get();
+			thy z.column (iframe) <<= y.get();
 		}
 		return thee;
 	} catch (MelderError) {

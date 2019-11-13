@@ -311,7 +311,7 @@ autoDistance structISplineTransformator :: v_transform (MDSVec vec, Distance dis
 		}
 	}
 
-	b = NUMsolveNonNegativeLeastSquaresRegression (m.get(), d.get(), tol, itermax);
+	b = newVECsolveNonNegativeLeastSquaresRegression (m.get(), d.get(), tol, itermax);
 
 	for (integer i = 1; i <= nx; i ++) {
 		integer ii = vec->rowIndex [i];
@@ -1005,7 +1005,7 @@ autoDistance MDSVec_Distance_monotoneRegression (MDSVec me, Distance thee, kMDS_
 			}
 		}
 
-		autoVEC fit = VECmonotoneRegression (distances.get());
+		autoVEC fit = newVECmonotoneRegression (distances.get());
 
 		// Fill Distance with monotone regressed distances
 
@@ -1955,8 +1955,9 @@ static void indscal_iteration_tenBerge (ScalarProductList zc, Configuration xc, 
 				for (integer l = 1; l <= nPoints; l ++)
 					wih += xc -> data [k] [h] * spr -> data [k] [l] * xc -> data [l] [h];
 			}
-			wih = std::max (0.0, (double) wih);
-			weights -> data [i] [h] = wih;
+			if (wih < 0.0)
+				wih = 0.0;
+			weights -> data [i] [h] = double (wih);
 
 		}
 	}
